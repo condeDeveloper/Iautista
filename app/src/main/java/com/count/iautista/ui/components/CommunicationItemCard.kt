@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -17,7 +18,9 @@ import androidx.compose.ui.unit.sp
 import com.count.iautista.domain.model.ButtonSize
 import com.count.iautista.domain.model.CommunicationItem
 import com.count.iautista.ui.theme.ShapeCard
+import com.count.iautista.ui.theme.ShapeEmojiContainer
 
+// V2: container de emoji consistente com CategoryCard, estados de seleção mais polidos
 @Composable
 fun CommunicationItemCard(
     item: CommunicationItem,
@@ -27,31 +30,43 @@ fun CommunicationItemCard(
     isSelected: Boolean = false,
 ) {
     val cardSize = when (buttonSize) {
-        ButtonSize.SMALL -> 88.dp
+        ButtonSize.SMALL  -> 88.dp
         ButtonSize.MEDIUM -> 104.dp
-        ButtonSize.LARGE -> 120.dp
+        ButtonSize.LARGE  -> 120.dp
     }
-    val emojiSize = when (buttonSize) {
-        ButtonSize.SMALL -> 32.sp
-        ButtonSize.MEDIUM -> 40.sp
-        ButtonSize.LARGE -> 48.sp
+    val emojiContainerSize = when (buttonSize) {
+        ButtonSize.SMALL  -> 40.dp
+        ButtonSize.MEDIUM -> 50.dp
+        ButtonSize.LARGE  -> 60.dp
+    }
+    val emojiFontSize = when (buttonSize) {
+        ButtonSize.SMALL  -> 22.sp
+        ButtonSize.MEDIUM -> 28.sp
+        ButtonSize.LARGE  -> 36.sp
     }
 
-    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
     val backgroundColor = if (isSelected)
         MaterialTheme.colorScheme.primaryContainer
     else
         MaterialTheme.colorScheme.surface
 
+    val emojiContainerColor = if (isSelected)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+    else
+        MaterialTheme.colorScheme.surfaceVariant
+
     Card(
         modifier = modifier
-            .size(cardSize, cardSize + 24.dp)
+            .size(cardSize, cardSize + 28.dp)
             .clip(ShapeCard)
             .clickable(onClick = onClick),
         shape = ShapeCard,
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = if (isSelected) BorderStroke(2.dp, borderColor) else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = if (isSelected)
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        else
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier
@@ -60,18 +75,31 @@ fun CommunicationItemCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Text(
-                text = item.emoji.ifBlank { "📌" },
-                fontSize = emojiSize,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+            // Container do emoji — estilo uniforme com CategoryCard
+            Box(
+                modifier = Modifier
+                    .size(emojiContainerSize)
+                    .clip(ShapeEmojiContainer)
+                    .background(emojiContainerColor),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = item.emoji.ifBlank { "📌" },
+                    fontSize = emojiFontSize,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = item.text,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
+                color = if (isSelected)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else
+                    MaterialTheme.colorScheme.onSurface,
             )
         }
     }

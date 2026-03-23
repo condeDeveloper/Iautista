@@ -1,9 +1,14 @@
 package com.count.iautista.ui.navigation
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
@@ -37,32 +42,18 @@ fun IautistaNavGraph(
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
-                    bottomNavItems.forEach { item ->
-                        val selected = currentDestination?.hierarchy
-                            ?.any { it.route == item.screen.route } == true
-
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                navController.navigate(item.screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.label,
-                                )
-                            },
-                            label = { Text(item.label) },
-                        )
-                    }
-                }
+                IautistaBottomBar(
+                    currentDestination = currentDestination,
+                    onNavigate = { route ->
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                )
             }
         },
     ) { innerPadding ->
@@ -166,6 +157,61 @@ fun IautistaNavGraph(
                 ContaScreen(
                     onBack = { navController.popBackStack() },
                     onNavigateToLogin = { navController.navigate(Screen.Login.route) },
+                )
+            }
+        }
+    }
+}
+
+// ── Bottom Navigation Bar ─────────────────────────────────────────────────────
+
+@Composable
+private fun IautistaBottomBar(
+    currentDestination: NavDestination?,
+    onNavigate: (String) -> Unit,
+) {
+    Column {
+        // Separador sutil no topo — substitui sombra de elevação
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant,
+            thickness = 0.5.dp,
+        )
+        NavigationBar(
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,   // sem tonal overlay — surface puro
+        ) {
+            bottomNavItems.forEach { item ->
+                val selected = currentDestination?.hierarchy
+                    ?.any { it.route == item.screen.route } == true
+
+                NavigationBarItem(
+                    selected = selected,
+                    onClick = { onNavigate(item.screen.route) },
+                    icon = {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.label,
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = item.label,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                            ),
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    alwaysShowLabel = true,
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor   = MaterialTheme.colorScheme.primary,
+                        selectedTextColor   = MaterialTheme.colorScheme.primary,
+                        indicatorColor      = MaterialTheme.colorScheme.primaryContainer,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
                 )
             }
         }

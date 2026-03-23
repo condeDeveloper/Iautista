@@ -47,11 +47,11 @@ sealed class BottomNavItem(
     val label: String,
     val icon: ImageVector,
 ) {
-    object Inicio : BottomNavItem(Screen.Inicio, "Início", Icons.Filled.Home)
-    object Comunicar : BottomNavItem(Screen.Comunicar, "Comunicar", Icons.Filled.ChatBubble)
-    object Rotina : BottomNavItem(Screen.Rotina, "Rotina", Icons.Filled.CalendarToday)
-    object Historico : BottomNavItem(Screen.Historico, "Histórico", Icons.Filled.History)
-    object Responsavel : BottomNavItem(Screen.Responsavel, "Responsável", Icons.Filled.Settings)
+    object Inicio      : BottomNavItem(Screen.Inicio,      "Início",      Icons.Filled.Home)
+    object Comunicar   : BottomNavItem(Screen.Comunicar,   "Comunicar",   Icons.Filled.ChatBubble)
+    object Rotina      : BottomNavItem(Screen.Rotina,      "Rotina",      Icons.Filled.CalendarToday)
+    object Historico   : BottomNavItem(Screen.Historico,   "Histórico",   Icons.Filled.History)
+    object Responsavel : BottomNavItem(Screen.Responsavel, "Responsável", Icons.Filled.ManageAccounts)
 }
 
 val bottomNavItems = listOf(

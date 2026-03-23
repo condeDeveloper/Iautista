@@ -4,7 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
-    alias(libs.plugins.google.services)
+    // ADAPTAÇÃO: plugin desativado — requer google-services.json real do Firebase
+    // alias(libs.plugins.google.services)
 }
 
 android {
@@ -74,9 +75,11 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // Firebase
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.auth)
+    // ADAPTAÇÃO: Firebase desativado — auth substituída por implementação local
+    // Para reativar: descomentar as linhas abaixo e o plugin google.services acima,
+    // e restaurar a versão original de AuthRepository.kt
+    // implementation(platform(libs.firebase.bom))
+    // implementation(libs.firebase.auth)
 
     // Coil
     implementation(libs.coil.compose)

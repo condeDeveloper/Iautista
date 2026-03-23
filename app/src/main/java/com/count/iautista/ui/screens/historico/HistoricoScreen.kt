@@ -1,5 +1,6 @@
 package com.count.iautista.ui.screens.historico
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -54,14 +55,14 @@ fun HistoricoScreen(
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
             modifier = Modifier
                 .padding(horizontal = 20.dp)
-                .padding(top = 20.dp, bottom = 4.dp),
+                .padding(top = 24.dp, bottom = 6.dp),
         )
 
         // ── Tabs ──────────────────────────────────────────────────────────────
         LazyRow(
             contentPadding = PaddingValues(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(bottom = 8.dp),
+            modifier = Modifier.padding(bottom = 12.dp),
         ) {
             itemsIndexed(tabs) { index, label ->
                 val selected = state.selectedTab.ordinal == index
@@ -156,7 +157,7 @@ fun HistoricoScreen(
                     }
                     item(key = "divider_after_speak") {
                         HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                             color = MaterialTheme.colorScheme.outlineVariant,
                         )
                     }
@@ -250,21 +251,22 @@ private fun SpeakAgainCard(
     count: Int,
     onClick: () -> Unit,
 ) {
-    ElevatedCard(
+    Card(
         onClick = onClick,
         modifier = Modifier
-            .width(160.dp)
-            .height(88.dp),
+            .width(172.dp)
+            .height(96.dp),
         shape = ShapeCard,
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.elevatedCardColors(
+        colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
+                .padding(14.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
@@ -284,12 +286,14 @@ private fun SpeakAgainCard(
             ) {
                 Text(
                     text = if (count > 1) "$count vezes" else "1 vez",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                    ),
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
+                        .size(30.dp)
                         .clip(ShapeCircle)
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center,
@@ -325,7 +329,7 @@ private fun DayGroupHeader(date: LocalDate) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
             .padding(horizontal = 20.dp)
-            .padding(top = 16.dp, bottom = 4.dp),
+            .padding(top = 20.dp, bottom = 6.dp),
     )
 }
 
@@ -337,7 +341,7 @@ private fun TimeSlotHeader(slot: String, count: Int) {
     Row(
         modifier = Modifier
             .padding(horizontal = 20.dp)
-            .padding(top = 16.dp, bottom = 4.dp),
+            .padding(top = 20.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -376,7 +380,7 @@ private fun PhraseHistoryItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onSpeakAgain)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 20.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -384,14 +388,14 @@ private fun PhraseHistoryItem(
             Text(
                 text = phrase.phraseText,
                 style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.SemiBold,
                 ),
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (showTime) {
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(5.dp))
                 Text(
                     text = phrase.createdAt.format(
                         DateTimeFormatter.ofPattern("HH:mm · dd/MM"),
@@ -401,7 +405,6 @@ private fun PhraseHistoryItem(
                 )
             }
         }
-        // Botão de falar — maior e mais proeminente
         FilledTonalIconButton(
             onClick = onSpeakAgain,
             modifier = Modifier.size(44.dp),
@@ -419,7 +422,7 @@ private fun PhraseHistoryItem(
     }
     HorizontalDivider(
         modifier = Modifier.padding(horizontal = 20.dp),
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
     )
 }
 

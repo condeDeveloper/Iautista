@@ -1,13 +1,18 @@
 package com.count.iautista.ui.navigation
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.count.iautista.ui.theme.ShapeChip
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -171,49 +176,84 @@ private fun IautistaBottomBar(
     onNavigate: (String) -> Unit,
 ) {
     Column {
-        // Separador sutil no topo — substitui sombra de elevação
+        // Separador sutil no topo — sem sombra, sem elevação
         HorizontalDivider(
             color = MaterialTheme.colorScheme.outlineVariant,
             thickness = 0.5.dp,
         )
-        NavigationBar(
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp,   // sem tonal overlay — surface puro
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            bottomNavItems.forEach { item ->
-                val selected = currentDestination?.hierarchy
-                    ?.any { it.route == item.screen.route } == true
-
-                NavigationBarItem(
-                    selected = selected,
-                    onClick = { onNavigate(item.screen.route) },
-                    icon = {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = item.label,
-                        )
-                    },
-                    label = {
-                        Text(
-                            text = item.label,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                            ),
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    alwaysShowLabel = true,
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor   = MaterialTheme.colorScheme.primary,
-                        selectedTextColor   = MaterialTheme.colorScheme.primary,
-                        indicatorColor      = MaterialTheme.colorScheme.primaryContainer,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(NavigationBarDefaults.windowInsets)
+                    .height(68.dp),
+            ) {
+                bottomNavItems.forEach { item ->
+                    val selected = currentDestination?.hierarchy
+                        ?.any { it.route == item.screen.route } == true
+                    BottomBarItem(
+                        item = item,
+                        selected = selected,
+                        onClick = { onNavigate(item.screen.route) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun BottomBarItem(
+    item: BottomNavItem,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxHeight()
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        // Pill compacto 48×32dp — abraça o ícone, não a área toda
+        // Menos genérico que o pill padrão do Material3 (64dp de largura)
+        Box(
+            modifier = Modifier
+                .size(width = 48.dp, height = 32.dp)
+                .clip(ShapeChip)
+                .background(
+                    if (selected) MaterialTheme.colorScheme.primaryContainer
+                    else Color.Transparent
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = item.icon,
+                contentDescription = item.label,
+                tint = if (selected)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = item.label,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            ),
+            color = if (selected)
+                MaterialTheme.colorScheme.primary
+            else
+                MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }

@@ -51,7 +51,7 @@ fun InicioScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
-                    .padding(top = 24.dp, bottom = 8.dp),
+                    .padding(top = 24.dp, bottom = 16.dp),
             ) {
                 Text(
                     text = state.greeting,
@@ -410,7 +410,7 @@ private fun NowFeaturedCard(
             Box(
                 modifier = Modifier
                     .size(90.dp)
-                    .clip(ShapeEmojiContainer)
+                    .clip(ShapeCard)
                     .background(
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
                     ),

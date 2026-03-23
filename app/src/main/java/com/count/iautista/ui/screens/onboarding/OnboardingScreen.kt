@@ -14,8 +14,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.count.iautista.ui.theme.ShapeButton
+import com.count.iautista.ui.theme.ShapeCard
 import com.count.iautista.ui.theme.ShapeCircle
-import com.count.iautista.ui.theme.ShapeEmojiContainer
 import kotlinx.coroutines.launch
 
 data class OnboardingPage(
@@ -70,7 +70,7 @@ fun OnboardingScreen(
                 Box(
                     modifier = Modifier
                         .size(120.dp)
-                        .clip(ShapeEmojiContainer)
+                        .clip(ShapeCard)
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {

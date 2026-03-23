@@ -58,7 +58,6 @@ fun CommunicationItemCard(
     Card(
         modifier = modifier
             .size(cardSize, cardSize + 28.dp)
-            .clip(ShapeCard)
             .clickable(onClick = onClick),
         shape = ShapeCard,
         colors = CardDefaults.cardColors(containerColor = backgroundColor),

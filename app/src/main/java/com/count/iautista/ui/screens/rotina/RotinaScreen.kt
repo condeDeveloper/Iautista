@@ -61,7 +61,7 @@ fun RotinaScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .padding(top = 20.dp, bottom = 8.dp),
+                .padding(top = 24.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -117,7 +117,7 @@ fun RotinaScreen(
             SectionHeader(
                 title = "Agora",
                 leadingIcon = Icons.Filled.Star,
-                iconTint = MaterialTheme.colorScheme.primary,
+                iconTint = ColorAccentYellow,
             )
 
             if (state.nowItems.isEmpty()) {
@@ -192,7 +192,7 @@ fun RotinaScreen(
             if (state.doneItems.isNotEmpty()) {
                 Spacer(Modifier.height(20.dp))
                 SectionHeader(
-                    title = "Concluído (${state.doneItems.size})",
+                    title = "Concluído · ${state.doneItems.size}",
                     leadingIcon = Icons.Filled.CheckCircle,
                     iconTint = ColorSuccess,
                 )
@@ -243,7 +243,7 @@ private fun RoutineFeaturedCard(
             Box(
                 modifier = Modifier
                     .size(80.dp)
-                    .clip(ShapeEmojiContainer)
+                    .clip(ShapeCard)
                     .background(
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                     ),

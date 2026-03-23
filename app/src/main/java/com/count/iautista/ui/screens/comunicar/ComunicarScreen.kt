@@ -33,7 +33,7 @@ fun ComunicarScreen(
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
             modifier = Modifier
                 .padding(horizontal = 20.dp)
-                .padding(top = 20.dp, bottom = 4.dp),
+                .padding(top = 24.dp, bottom = 8.dp),
             color = MaterialTheme.colorScheme.onBackground,
         )
 

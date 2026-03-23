@@ -1,6 +1,7 @@
 package com.count.iautista.ui.screens.responsavel
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -210,17 +211,17 @@ private fun ProfileCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Avatar placeholder
             Box(
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(60.dp)
                     .clip(ShapeCircle)
                     .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
                     ),
                 contentAlignment = Alignment.Center,
             ) {
@@ -244,7 +245,7 @@ private fun ProfileCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = name ?: "Sem nome",
+                    text = name ?: "Perfil da criança",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                     ),
@@ -252,7 +253,7 @@ private fun ProfileCard(
                 )
                 Text(
                     text = "Toque para editar o perfil",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 )
             }
@@ -274,14 +275,14 @@ private fun ProfileCard(
 private fun SettingsSectionLabel(title: String) {
     Text(
         text = title.uppercase(),
-        style = MaterialTheme.typography.labelSmall.copy(
+        style = MaterialTheme.typography.labelMedium.copy(
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.sp,
         ),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
             .padding(horizontal = 20.dp)
-            .padding(bottom = 6.dp),
+            .padding(bottom = 8.dp),
     )
 }
 
@@ -415,14 +416,14 @@ private fun PremiumBanner(onClick: () -> Unit) {
                 modifier = Modifier
                     .size(48.dp)
                     .clip(ShapeEmojiContainer)
-                    .background(Color.White.copy(alpha = 0.18f)),
+                    .background(Color.White.copy(alpha = 0.22f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Filled.Star,
                     contentDescription = null,
                     tint = ColorAccentYellow,
-                    modifier = Modifier.size(26.dp),
+                    modifier = Modifier.size(28.dp),
                 )
             }
 
@@ -436,22 +437,25 @@ private fun PremiumBanner(onClick: () -> Unit) {
                 )
                 Text(
                     text = "Itens ilimitados, backup e mais recursos",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.88f),
                 )
             }
 
-            Surface(
-                shape = ShapeButton,
-                color = Color.White.copy(alpha = 0.22f),
+            Box(
+                modifier = Modifier
+                    .clip(ShapeButton)
+                    .background(Color.White.copy(alpha = 0.20f))
+                    .border(1.dp, Color.White.copy(alpha = 0.45f), ShapeButton)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "Ver",
+                    text = "Ver plano",
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
                     ),
                     color = Color.White,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                 )
             }
         }

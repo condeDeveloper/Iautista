@@ -59,7 +59,6 @@ fun RoutineCard(
         modifier = modifier
             .width(128.dp)
             .height(152.dp)
-            .clip(ShapeCard)
             .clickable(onClick = onClick)
             .alpha(alphaValue),
         shape = ShapeCard,

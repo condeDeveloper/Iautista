@@ -1,5 +1,7 @@
 package com.count.iautista.ui.screens.comunicar
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.*
@@ -18,6 +20,7 @@ import com.count.iautista.domain.model.ButtonSize
 import com.count.iautista.domain.model.CommunicationCategory
 import com.count.iautista.ui.components.CategoryCard
 import com.count.iautista.ui.components.CommunicationItemCard
+import com.count.iautista.ui.components.PhraseBar
 import com.count.iautista.ui.components.SectionHeader
 import com.count.iautista.ui.sound.LocalSoundManager
 import com.count.iautista.ui.theme.ShapeChip
@@ -38,6 +41,20 @@ fun ComunicarScreen(
     val sound = LocalSoundManager.current
 
     Column(modifier = Modifier.fillMaxSize()) {
+
+        // ── Barra de frase (aparece quando há itens selecionados) ─────────────
+        AnimatedVisibility(
+            visible = state.phraseItems.isNotEmpty(),
+            enter = slideInVertically(tween(250)) { -it } + fadeIn(tween(250)),
+            exit = slideOutVertically(tween(200)) { -it } + fadeOut(tween(200)),
+        ) {
+            PhraseBar(
+                selectedItems = state.phraseItems,
+                onSpeak = { viewModel.speakPhrase() },
+                onClear = { viewModel.clearPhrase() },
+                onRemoveItem = { viewModel.removeItemFromPhrase(it) },
+            )
+        }
 
         // ── Título ────────────────────────────────────────────────────────────
         Text(
@@ -91,6 +108,7 @@ fun ComunicarScreen(
                             viewModel.speakItem(item)
                         },
                         buttonSize = ButtonSize.SMALL,
+                        isSelected = state.phraseItems.contains(item),
                     )
                 }
             }

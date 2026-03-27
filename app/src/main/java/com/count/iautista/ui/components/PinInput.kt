@@ -46,29 +46,35 @@ fun PinKeyboard(
 ) {
     val keys = listOf("1","2","3","4","5","6","7","8","9","","0","⌫")
 
-    Column(
+    Surface(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.extraLarge,
     ) {
-        keys.chunked(3).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                row.forEach { key ->
-                    if (key.isEmpty()) {
-                        Spacer(modifier = Modifier.size(80.dp))
-                    } else {
-                        FilledTonalButton(
-                            onClick = {
-                                if (key == "⌫") onBackspace() else onDigit(key)
-                            },
-                            modifier = Modifier.size(80.dp),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                            ),
-                        ) {
-                            Text(key, fontSize = 22.sp)
+        Column(
+            modifier = Modifier.padding(vertical = 20.dp, horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            keys.chunked(3).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    row.forEach { key ->
+                        if (key.isEmpty()) {
+                            Spacer(modifier = Modifier.size(80.dp))
+                        } else {
+                            FilledTonalButton(
+                                onClick = {
+                                    if (key == "⌫") onBackspace() else onDigit(key)
+                                },
+                                modifier = Modifier.size(80.dp),
+                                shape = CircleShape,
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.onSurface,
+                                ),
+                            ) {
+                                Text(key, fontSize = 22.sp)
+                            }
                         }
                     }
                 }

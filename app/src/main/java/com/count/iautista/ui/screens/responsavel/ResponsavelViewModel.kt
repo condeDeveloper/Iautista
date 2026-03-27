@@ -5,8 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.count.iautista.data.auth.AuthRepository
 import com.count.iautista.data.preferences.UserPreferencesDataStore
 import com.count.iautista.data.sync.FirestoreSyncService
+import com.count.iautista.domain.model.AppMode
 import com.count.iautista.domain.model.ChildProfile
+import com.count.iautista.domain.model.RoutineStatus
 import com.count.iautista.domain.model.UserPreferences
+import com.count.iautista.domain.repository.RoutineRepository
+import com.count.iautista.domain.usecase.historico.GetPhrasesHistoryUseCase
+import com.count.iautista.domain.usecase.historico.HistoryFilter
 import com.count.iautista.domain.usecase.responsavel.GetChildProfileUseCase
 import com.count.iautista.domain.usecase.responsavel.GetUserPreferencesUseCase
 import com.count.iautista.domain.usecase.responsavel.PinUseCase
@@ -16,11 +21,19 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class TodayStats(
+    val totalPhrases: Int = 0,
+    val topMode: AppMode? = null,
+    val routineCompleted: Int = 0,
+    val routineTotal: Int = 0,
+)
+
 data class ResponsavelUiState(
     val profile: ChildProfile? = null,
     val preferences: UserPreferences = UserPreferences(),
     val isPinConfigured: Boolean = false,
     val isLoggedIn: Boolean = false,
+    val todayStats: TodayStats = TodayStats(),
 )
 
 @HiltViewModel
@@ -32,17 +45,33 @@ class ResponsavelViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val dataStore: UserPreferencesDataStore,
     private val syncService: FirestoreSyncService,
+    private val getHistory: GetPhrasesHistoryUseCase,
+    private val routineRepository: RoutineRepository,
 ) : ViewModel() {
 
     val uiState: StateFlow<ResponsavelUiState> = combine(
         getProfile(),
         getPreferences(),
-    ) { profile, prefs ->
+        getHistory(HistoryFilter.TODAY),
+        routineRepository.getAllRoutineItems(),
+    ) { profile, prefs, todayPhrases, routineItems ->
+        val topMode = todayPhrases
+            .groupBy { it.appMode }
+            .maxByOrNull { it.value.size }
+            ?.key
+        val routineCompleted = routineItems.count { it.status == RoutineStatus.DONE }
+        val routineTotal = routineItems.size
         ResponsavelUiState(
-            profile          = profile,
-            preferences      = prefs,
-            isPinConfigured  = prefs.pinConfigured,
-            isLoggedIn       = authRepository.isLoggedIn,
+            profile         = profile,
+            preferences     = prefs,
+            isPinConfigured = prefs.pinConfigured,
+            isLoggedIn      = authRepository.isLoggedIn,
+            todayStats      = TodayStats(
+                totalPhrases     = todayPhrases.size,
+                topMode          = topMode,
+                routineCompleted = routineCompleted,
+                routineTotal     = routineTotal,
+            ),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ResponsavelUiState())
 

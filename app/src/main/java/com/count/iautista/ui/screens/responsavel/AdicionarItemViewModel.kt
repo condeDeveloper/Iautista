@@ -14,6 +14,8 @@ import com.count.iautista.domain.usecase.comunicar.SaveCustomItemUseCase
 import com.count.iautista.domain.usecase.comunicar.SaveItemResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +34,7 @@ data class AdicionarItemUiState(
     val audioUri: String? = null,
     val isRecording: Boolean = false,
     val isPlaying: Boolean = false,
+    val waveformAmplitudes: List<Float> = emptyList(),
     val isSaving: Boolean = false,
     val savedSuccessfully: Boolean = false,
     val premiumLimitReached: Boolean = false,
@@ -51,6 +54,8 @@ class AdicionarItemViewModel @Inject constructor(
     private var mediaRecorder: MediaRecorder? = null
     private var mediaPlayer: MediaPlayer? = null
     private var pendingPhotoUri: android.net.Uri? = null
+    private var pendingAudioFile: File? = null
+    private var amplitudeSamplerJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -108,15 +113,30 @@ class AdicionarItemViewModel @Inject constructor(
             prepare()
             start()
         }
-        _uiState.update { it.copy(isRecording = true, audioUri = file.absolutePath) }
+        pendingAudioFile = file
+        _uiState.update { it.copy(isRecording = true, waveformAmplitudes = emptyList()) }
+
+        amplitudeSamplerJob = viewModelScope.launch {
+            while (true) {
+                delay(80)
+                val raw = runCatching { mediaRecorder?.maxAmplitude ?: 0 }.getOrDefault(0)
+                val normalized = (raw / 32767f).coerceIn(0f, 1f)
+                _uiState.update { s ->
+                    s.copy(waveformAmplitudes = (s.waveformAmplitudes + normalized).takeLast(48))
+                }
+            }
+        }
     }
 
     fun stopRecording() {
+        amplitudeSamplerJob?.cancel()
+        amplitudeSamplerJob = null
         runCatching {
             mediaRecorder?.apply { stop(); release() }
         }
         mediaRecorder = null
-        _uiState.update { it.copy(isRecording = false) }
+        _uiState.update { it.copy(isRecording = false, audioUri = pendingAudioFile?.absolutePath, waveformAmplitudes = emptyList()) }
+        pendingAudioFile = null
     }
 
     fun playAudio() {
@@ -172,7 +192,9 @@ class AdicionarItemViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        amplitudeSamplerJob?.cancel()
         mediaRecorder?.release()
         mediaPlayer?.release()
+        pendingAudioFile = null
     }
 }

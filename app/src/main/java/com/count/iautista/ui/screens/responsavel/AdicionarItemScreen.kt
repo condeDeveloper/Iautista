@@ -3,6 +3,8 @@ package com.count.iautista.ui.screens.responsavel
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,7 +20,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
@@ -221,6 +228,7 @@ fun AdicionarItemScreen(
             )
 
             if (state.audioUri != null) {
+                // ── Áudio gravado: reproduzir ou remover ──────────────────────
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -244,32 +252,127 @@ fun AdicionarItemScreen(
                         Text("Remover", color = MaterialTheme.colorScheme.error)
                     }
                 }
+            } else if (state.isRecording) {
+                // ── Gravando: waveform + botão parar ─────────────────────────
+                RecordingWaveformCard(
+                    amplitudes = state.waveformAmplitudes,
+                    onStop = { viewModel.stopRecording() },
+                    waveColor = MaterialTheme.colorScheme.error,
+                )
             } else {
+                // ── Idle: botão iniciar gravação ───────────────────────────────
                 OutlinedButton(
                     onClick = {
-                        if (audioPermission.status.isGranted) {
-                            if (state.isRecording) viewModel.stopRecording()
-                            else viewModel.startRecording()
-                        } else {
-                            audioPermission.launchPermissionRequest()
-                        }
+                        if (audioPermission.status.isGranted) viewModel.startRecording()
+                        else audioPermission.launchPermissionRequest()
                     },
-                    colors = if (state.isRecording)
-                        ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                    else
-                        ButtonDefaults.outlinedButtonColors(),
                 ) {
-                    Icon(
-                        imageVector = if (state.isRecording) Icons.Filled.Stop else Icons.Filled.Mic,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
+                    Icon(Icons.Filled.Mic, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (state.isRecording) "Parar gravação" else "Gravar áudio")
+                    Text("Gravar áudio")
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+// ── Waveform durante gravação ─────────────────────────────────────────────────
+
+@Composable
+private fun RecordingWaveformCard(
+    amplitudes: List<Float>,
+    onStop: () -> Unit,
+    waveColor: Color,
+) {
+    // Pulsa o ponto vermelho quando estiver gravando
+    val infiniteTransition = rememberInfiniteTransition(label = "rec_dot")
+    val dotAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "dot_alpha",
+    )
+
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            // Indicador "REC" pulsante
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(waveColor.copy(alpha = dotAlpha)),
+            )
+
+            // Waveform
+            AudioWaveform(
+                amplitudes = amplitudes,
+                barColor = waveColor,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+            )
+
+            // Botão parar
+            FilledIconButton(
+                onClick = onStop,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = waveColor,
+                    contentColor = Color.White,
+                ),
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(Icons.Filled.Stop, contentDescription = "Parar gravação", modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AudioWaveform(
+    amplitudes: List<Float>,
+    modifier: Modifier = Modifier,
+    barColor: Color = MaterialTheme.colorScheme.primary,
+    barWidth: Dp = 4.dp,
+    barGap: Dp = 3.dp,
+) {
+    val barWidthPx = with(androidx.compose.ui.platform.LocalDensity.current) { barWidth.toPx() }
+    val barGapPx   = with(androidx.compose.ui.platform.LocalDensity.current) { barGap.toPx() }
+
+    Canvas(modifier = modifier) {
+        val centerY    = size.height / 2f
+        val minHeight  = 6f
+        val maxHeight  = size.height * 0.88f
+        val step       = barWidthPx + barGapPx
+        val totalBars  = (size.width / step).toInt().coerceAtLeast(1)
+
+        // Preenche com zeros se ainda não há amostras suficientes
+        val padded = List(totalBars) { i ->
+            val dataIndex = amplitudes.size - totalBars + i
+            if (dataIndex >= 0) amplitudes[dataIndex] else 0f
+        }
+
+        padded.forEachIndexed { i, amplitude ->
+            val barHeight = minHeight + amplitude * (maxHeight - minHeight)
+            val x = i * step
+            drawRoundRect(
+                color = barColor,
+                topLeft = Offset(x, centerY - barHeight / 2f),
+                size = Size(barWidthPx, barHeight),
+                cornerRadius = CornerRadius(barWidthPx / 2f),
+            )
         }
     }
 }

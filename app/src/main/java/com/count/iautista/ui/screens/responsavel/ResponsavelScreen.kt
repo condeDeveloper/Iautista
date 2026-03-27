@@ -24,6 +24,7 @@ import com.count.iautista.ui.theme.ColorTertiary
 import com.count.iautista.ui.theme.ColorWarning
 import com.count.iautista.ui.theme.ColorWarningContainer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -92,6 +93,13 @@ fun ResponsavelScreen(
                 onClick = onNavigateToGerenciarPerfis,
             )
             Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        // ── Seção: Relatórios de hoje ─────────────────────────────────────────
+        item {
+            SettingsSectionLabel(title = "Hoje")
+            TodayReportCard(stats = state.todayStats)
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         // ── Seção: Comunicação ─────────────────────────────────────────────────
@@ -402,6 +410,101 @@ private fun SettingsRow(
                 color = MaterialTheme.colorScheme.outlineVariant,
             )
         }
+    }
+}
+
+/**
+ * Card compacto com resumo do dia: frases faladas, modo mais usado e progresso da rotina.
+ */
+@Composable
+private fun TodayReportCard(stats: TodayStats) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        shape = ShapeCard,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant,
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            ReportStatCell(
+                value = stats.totalPhrases.toString(),
+                label = "Frases\nhoje",
+                icon = Icons.Filled.ChatBubble,
+                iconColor = MaterialTheme.colorScheme.primary,
+            )
+
+            VerticalDivider(
+                modifier = Modifier.height(48.dp),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+
+            ReportStatCell(
+                value = stats.topMode?.emoji ?: "—",
+                label = stats.topMode?.label ?: "Nenhum\nmodo",
+                icon = Icons.Filled.Place,
+                iconColor = MaterialTheme.colorScheme.secondary,
+            )
+
+            VerticalDivider(
+                modifier = Modifier.height(48.dp),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+
+            ReportStatCell(
+                value = if (stats.routineTotal > 0)
+                    "${stats.routineCompleted}/${stats.routineTotal}"
+                else "—",
+                label = "Rotina\nconcluída",
+                icon = Icons.Filled.CheckCircle,
+                iconColor = if (stats.routineTotal > 0 && stats.routineCompleted == stats.routineTotal)
+                    MaterialTheme.colorScheme.tertiary
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReportStatCell(
+    value: String,
+    label: String,
+    icon: ImageVector,
+    iconColor: Color,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = iconColor,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

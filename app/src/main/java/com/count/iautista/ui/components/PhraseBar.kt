@@ -86,7 +86,7 @@ fun PhraseBar(
                 ) {
                     Icon(
                         Icons.Filled.VolumeUp,
-                        contentDescription = null,
+                        contentDescription = "Falar frase",
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.onSurface,
                     )

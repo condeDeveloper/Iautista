@@ -14,7 +14,7 @@ import com.count.iautista.data.local.entity.*
         RoutineItemEntity::class,
         PhraseHistoryEntity::class,
     ],
-    version = 3,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)

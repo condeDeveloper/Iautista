@@ -29,14 +29,13 @@ sealed class Screen(val route: String) {
     }
 
     // Responsavel sub-screens
+    object GerenciarPerfis : Screen("gerenciar_perfis")
     object GerenciarItens : Screen("gerenciar_itens")
+    object GerenciarRotina : Screen("gerenciar_rotina")
     object AdicionarItem : Screen("adicionar_item?categoryId={categoryId}") {
         fun createRoute(categoryId: Long? = null) =
             if (categoryId != null) "adicionar_item?categoryId=$categoryId"
             else "adicionar_item"
-    }
-    object EditarItem : Screen("editar_item/{itemId}") {
-        fun createRoute(itemId: Long) = "editar_item/$itemId"
     }
     object Configuracoes : Screen("configuracoes")
     object Conta : Screen("conta")

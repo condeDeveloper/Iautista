@@ -17,6 +17,8 @@ import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
+import com.count.iautista.ui.sound.LocalSoundManager
+import com.count.iautista.ui.sound.SoundManager
 import com.count.iautista.ui.screens.auth.CadastroScreen
 import com.count.iautista.ui.screens.auth.ContaScreen
 import com.count.iautista.ui.screens.auth.LoginScreen
@@ -26,7 +28,10 @@ import com.count.iautista.ui.screens.historico.HistoricoScreen
 import com.count.iautista.ui.screens.inicio.InicioScreen
 import com.count.iautista.ui.screens.onboarding.OnboardingScreen
 import com.count.iautista.ui.screens.configuracoes.ConfiguracoesScreen
+import com.count.iautista.ui.screens.responsavel.AdicionarItemScreen
 import com.count.iautista.ui.screens.responsavel.GerenciarItensScreen
+import com.count.iautista.ui.screens.responsavel.GerenciarPerfisScreen
+import com.count.iautista.ui.screens.responsavel.GerenciarRotinaScreen
 import com.count.iautista.ui.screens.responsavel.ResponsavelScreen
 import com.count.iautista.ui.screens.responsavel.pin.PinSetupScreen
 import com.count.iautista.ui.screens.responsavel.pin.PinValidationScreen
@@ -36,6 +41,7 @@ import com.count.iautista.ui.screens.rotina.RotinaScreen
 fun IautistaNavGraph(
     startDestination: String = Screen.Onboarding.route,
 ) {
+    val soundManager = remember { SoundManager() }
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -44,6 +50,7 @@ fun IautistaNavGraph(
         currentDestination?.hierarchy?.any { it.route == item.screen.route } == true
     }
 
+    androidx.compose.runtime.CompositionLocalProvider(LocalSoundManager provides soundManager) {
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
@@ -136,7 +143,11 @@ fun IautistaNavGraph(
                 )
             }
             composable(Screen.Rotina.route) {
-                RotinaScreen()
+                RotinaScreen(
+                    onNavigateToGerenciarRotina = {
+                        navController.navigate(Screen.GerenciarRotina.route)
+                    },
+                )
             }
             composable(Screen.Historico.route) {
                 HistoricoScreen()
@@ -144,7 +155,9 @@ fun IautistaNavGraph(
             composable(Screen.Responsavel.route) {
                 ResponsavelScreen(
                     onNavigateToPinSetup        = { navController.navigate(Screen.PinSetup.route) },
+                    onNavigateToGerenciarPerfis = { navController.navigate(Screen.GerenciarPerfis.route) },
                     onNavigateToGerenciarItens  = { navController.navigate(Screen.GerenciarItens.route) },
+                    onNavigateToGerenciarRotina = { navController.navigate(Screen.GerenciarRotina.route) },
                     onNavigateToConfiguracoes   = { navController.navigate(Screen.Configuracoes.route) },
                     onNavigateToConta           = { navController.navigate(Screen.Conta.route) },
                     onRequirePin                = { navController.navigate(Screen.PinValidation.route) },
@@ -152,11 +165,30 @@ fun IautistaNavGraph(
             }
 
             // ── Sub-telas do Responsável ──────────────────────────────────────
+            composable(Screen.GerenciarPerfis.route) {
+                GerenciarPerfisScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.GerenciarRotina.route) {
+                GerenciarRotinaScreen(onBack = { navController.popBackStack() })
+            }
             composable(Screen.Configuracoes.route) {
                 ConfiguracoesScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.GerenciarItens.route) {
-                GerenciarItensScreen(onBack = { navController.popBackStack() })
+                GerenciarItensScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToAddItem = { categoryId ->
+                        navController.navigate(Screen.AdicionarItem.createRoute(categoryId))
+                    },
+                )
+            }
+            composable(Screen.AdicionarItem.route) { backStackEntry ->
+                val categoryId = backStackEntry.arguments
+                    ?.getString("categoryId")?.toLongOrNull()
+                AdicionarItemScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToPremium = { navController.navigate(Screen.Conta.route) },
+                )
             }
             composable(Screen.Conta.route) {
                 ContaScreen(
@@ -166,6 +198,7 @@ fun IautistaNavGraph(
             }
         }
     }
+    } // CompositionLocalProvider
 }
 
 // ── Bottom Navigation Bar ─────────────────────────────────────────────────────

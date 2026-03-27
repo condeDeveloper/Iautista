@@ -44,14 +44,14 @@ fun RoutineCard(
 
     // LATER e DONE reduzem alfa para indicar visualmente que não é o foco agora
     val alphaValue = when {
-        isDone  -> 0.60f
+        isDone  -> 0.80f
         isLater -> 0.75f
         else    -> 1f
     }
 
     val emojiContainerColor = when {
         isNow   -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-        isDone  -> ColorSuccess.copy(alpha = 0.18f)
+        isDone  -> ColorSuccess.copy(alpha = 0.28f)
         else    -> MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)
     }
 
@@ -109,6 +109,15 @@ fun RoutineCard(
                     maxLines = 2,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
+                if (item.suggestedHour != null && !isDone) {
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "${item.suggestedHour}h",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
 
             // Badge de concluído — círculo verde com check

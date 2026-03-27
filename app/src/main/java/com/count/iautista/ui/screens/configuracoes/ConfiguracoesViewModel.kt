@@ -6,6 +6,7 @@ import com.count.iautista.domain.model.AppTheme
 import com.count.iautista.domain.model.ButtonSize
 import com.count.iautista.domain.usecase.responsavel.GetUserPreferencesUseCase
 import com.count.iautista.domain.usecase.responsavel.UpdatePreferencesUseCase
+import com.count.iautista.worker.RoutineNotificationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -16,21 +17,24 @@ data class ConfiguracoesUiState(
     val appTheme: AppTheme = AppTheme.LIGHT,
     val ttsEnabled: Boolean = true,
     val ttsRate: Float = 0.9f,
+    val notificationsEnabled: Boolean = true,
 )
 
 @HiltViewModel
 class ConfiguracoesViewModel @Inject constructor(
     private val getPreferences: GetUserPreferencesUseCase,
     private val updatePreferences: UpdatePreferencesUseCase,
+    private val notificationScheduler: RoutineNotificationScheduler,
 ) : ViewModel() {
 
     val uiState: StateFlow<ConfiguracoesUiState> = getPreferences()
         .map { prefs ->
             ConfiguracoesUiState(
-                buttonSize = prefs.buttonSize,
-                appTheme   = prefs.appTheme,
-                ttsEnabled = prefs.ttsEnabled,
-                ttsRate    = prefs.ttsRate,
+                buttonSize           = prefs.buttonSize,
+                appTheme             = prefs.appTheme,
+                ttsEnabled           = prefs.ttsEnabled,
+                ttsRate              = prefs.ttsRate,
+                notificationsEnabled = prefs.notificationsEnabled,
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ConfiguracoesUiState())
@@ -49,5 +53,12 @@ class ConfiguracoesViewModel @Inject constructor(
 
     fun setTtsRate(rate: Float) {
         viewModelScope.launch { updatePreferences.setTtsRate(rate) }
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            updatePreferences.setNotificationsEnabled(enabled)
+            if (enabled) notificationScheduler.schedule() else notificationScheduler.cancel()
+        }
     }
 }

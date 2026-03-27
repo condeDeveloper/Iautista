@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.count.iautista.data.auth.AuthRepository
 import com.count.iautista.data.preferences.UserPreferencesDataStore
+import com.count.iautista.data.sync.FirestoreSyncService
 import com.count.iautista.domain.model.ChildProfile
 import com.count.iautista.domain.model.UserPreferences
 import com.count.iautista.domain.usecase.responsavel.GetChildProfileUseCase
@@ -29,7 +30,8 @@ class ResponsavelViewModel @Inject constructor(
     private val getPreferences: GetUserPreferencesUseCase,
     private val pinUseCase: PinUseCase,
     private val authRepository: AuthRepository,
-    private val dataStore: UserPreferencesDataStore,  // apenas para setLoggedIn no signOut
+    private val dataStore: UserPreferencesDataStore,
+    private val syncService: FirestoreSyncService,
 ) : ViewModel() {
 
     val uiState: StateFlow<ResponsavelUiState> = combine(
@@ -67,7 +69,20 @@ class ResponsavelViewModel @Inject constructor(
     }
 
     fun signOut() {
-        authRepository.signOut()
-        viewModelScope.launch { dataStore.setLoggedIn(false) }
+        val uid = authRepository.currentUser?.uid
+        viewModelScope.launch {
+            // Faz backup antes de sair para não perder dados
+            if (uid != null) runCatching { syncService.pushAll(uid) }
+            authRepository.signOut()
+            dataStore.setLoggedIn(false)
+        }
+    }
+
+    fun pushBackup(onComplete: (success: Boolean) -> Unit) {
+        val uid = authRepository.currentUser?.uid ?: run { onComplete(false); return }
+        viewModelScope.launch {
+            val result = runCatching { syncService.pushAll(uid) }
+            onComplete(result.isSuccess)
+        }
     }
 }

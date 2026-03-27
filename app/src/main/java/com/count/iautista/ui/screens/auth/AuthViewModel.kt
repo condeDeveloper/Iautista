@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.count.iautista.data.auth.AuthRepository
 import com.count.iautista.data.auth.AuthResult
 import com.count.iautista.data.preferences.UserPreferencesDataStore
+import com.count.iautista.data.sync.FirestoreSyncService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,12 +21,14 @@ data class AuthUiState(
     val isLoading: Boolean = false,
     val isLoggedIn: Boolean = false,
     val error: String? = null,
+    val resetEmailSent: Boolean = false,
 )
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val preferencesDataStore: UserPreferencesDataStore,
+    private val syncService: FirestoreSyncService,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState(isLoggedIn = authRepository.isLoggedIn))
@@ -51,11 +54,30 @@ class AuthViewModel @Inject constructor(
             when (val result = authRepository.signIn(s.email, s.password)) {
                 is AuthResult.Success -> {
                     preferencesDataStore.setLoggedIn(true)
+                    // Restaura dados da nuvem para o dispositivo após login
+                    runCatching { syncService.pullAll(result.user.uid) }
                     _uiState.update { it.copy(isLoading = false, isLoggedIn = true) }
                 }
                 is AuthResult.Error -> {
                     _uiState.update { it.copy(isLoading = false, error = result.message) }
                 }
+            }
+        }
+    }
+
+    fun sendPasswordResetEmail() {
+        val email = _uiState.value.email.trim()
+        if (email.isBlank()) {
+            _uiState.update { it.copy(error = "Informe seu e-mail para redefinir a senha") }
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null, resetEmailSent = false) }
+            when (val result = authRepository.sendPasswordResetEmail(email)) {
+                is AuthResult.Success ->
+                    _uiState.update { it.copy(isLoading = false, resetEmailSent = true) }
+                is AuthResult.Error ->
+                    _uiState.update { it.copy(isLoading = false, error = result.message) }
             }
         }
     }
@@ -81,6 +103,8 @@ class AuthViewModel @Inject constructor(
             when (val result = authRepository.signUp(s.email, s.password)) {
                 is AuthResult.Success -> {
                     preferencesDataStore.setLoggedIn(true)
+                    // Restaura dados da nuvem para o dispositivo após cadastro
+                    runCatching { syncService.pullAll(result.user.uid) }
                     _uiState.update { it.copy(isLoading = false, isLoggedIn = true) }
                 }
                 is AuthResult.Error -> {

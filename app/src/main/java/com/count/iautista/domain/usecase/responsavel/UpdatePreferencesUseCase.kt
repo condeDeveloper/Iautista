@@ -12,8 +12,9 @@ import javax.inject.Inject
 class UpdatePreferencesUseCase @Inject constructor(
     private val dataStore: UserPreferencesDataStore,
 ) {
-    suspend fun setButtonSize(size: ButtonSize) = dataStore.setButtonSize(size)
-    suspend fun setAppTheme(theme: AppTheme)    = dataStore.setAppTheme(theme)
-    suspend fun setTtsEnabled(enabled: Boolean) = dataStore.setTtsEnabled(enabled)
-    suspend fun setTtsRate(rate: Float)          = dataStore.setTtsRate(rate)
+    suspend fun setButtonSize(size: ButtonSize)         = dataStore.setButtonSize(size)
+    suspend fun setAppTheme(theme: AppTheme)            = dataStore.setAppTheme(theme)
+    suspend fun setTtsEnabled(enabled: Boolean)         = dataStore.setTtsEnabled(enabled)
+    suspend fun setTtsRate(rate: Float)                 = dataStore.setTtsRate(rate)
+    suspend fun setNotificationsEnabled(enabled: Boolean) = dataStore.setNotificationsEnabled(enabled)
 }

@@ -1,6 +1,5 @@
 package com.count.iautista.ui.screens.historico
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,7 +9,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.count.iautista.domain.model.PhraseHistory
 import com.count.iautista.ui.components.SectionHeader
@@ -35,17 +32,7 @@ fun HistoricoScreen(
     viewModel: HistoricoViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
-    val tabs = listOf("Recentes", "Hoje", "Esta semana")
-
-    // Frases mais repetidas — top 5 por frequência de texto
-    val topPhrases = remember(state.phrases) {
-        state.phrases
-            .groupBy { it.phraseText }
-            .entries
-            .sortedByDescending { it.value.size }
-            .take(5)
-            .map { it.key to it.value.size }
-    }
+    val tabs = listOf("Agora", "Hoje", "Esta semana")
 
     Column(modifier = Modifier.fillMaxSize()) {
 
@@ -55,20 +42,20 @@ fun HistoricoScreen(
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
             modifier = Modifier
                 .padding(horizontal = 20.dp)
-                .padding(top = 24.dp, bottom = 6.dp),
+                .padding(top = 24.dp, bottom = 16.dp),
         )
 
-        // ── Tabs ──────────────────────────────────────────────────────────────
+        // ── Tab bar de período ────────────────────────────────────────────────
         LazyRow(
             contentPadding = PaddingValues(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(bottom = 12.dp),
+            modifier = Modifier.padding(bottom = 16.dp),
         ) {
             itemsIndexed(tabs) { index, label ->
                 val selected = state.selectedTab.ordinal == index
                 FilterChip(
                     selected = selected,
-                    onClick = { viewModel.selectTab(HistoricoTab.values()[index]) },
+                    onClick = { viewModel.selectTab(HistoricoTab.entries[index]) },
                     label = {
                         Text(
                             text = label,
@@ -93,145 +80,219 @@ fun HistoricoScreen(
             }
         }
 
+        // ── Conteúdo ──────────────────────────────────────────────────────────
         if (state.phrases.isEmpty()) {
-            // ── Estado vazio ──────────────────────────────────────────────────
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp, vertical = 48.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Text("💬", style = MaterialTheme.typography.displayLarge)
-                    Text(
-                        text = "Nenhuma frase ainda.",
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = FontWeight.SemiBold,
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        text = "Comece a se comunicar na aba Comunicar.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
+            EmptyState(tab = state.selectedTab)
+        } else {
+            val maxCount = state.topPhrases.firstOrNull()?.second?.toFloat() ?: 1f
+
+            LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
+
+                // ── Falar novamente ───────────────────────────────────────────
+                item(key = "falar_header") {
+                    SectionHeader(
+                        title = falarNovamenteTitle(state.selectedTab),
+                        leadingIcon = Icons.AutoMirrored.Filled.VolumeUp,
+                        iconTint = MaterialTheme.colorScheme.primary,
                     )
                 }
-            }
-        } else {
-            LazyColumn(
-                contentPadding = PaddingValues(bottom = 32.dp),
-            ) {
-
-                // ── Falar novamente — frases mais usadas ──────────────────────
-                if (topPhrases.isNotEmpty()) {
-                    item(key = "speak_again_header") {
-                        SectionHeader(
-                            title = "Falar novamente",
-                            leadingIcon = Icons.AutoMirrored.Filled.VolumeUp,
-                            iconTint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    item(key = "speak_again_row") {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            items(topPhrases, key = { it.first }) { (text, count) ->
-                                SpeakAgainCard(
-                                    phraseText = text,
-                                    count = count,
-                                    onClick = {
-                                        // Encontra a frase mais recente com esse texto e repete
-                                        state.phrases
-                                            .firstOrNull { it.phraseText == text }
-                                            ?.let { viewModel.speakAgain(it) }
-                                    },
-                                )
-                            }
+                item(key = "falar_row") {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        items(state.topPhrases, key = { it.first }) { (text, count) ->
+                            SpeakAgainCard(
+                                phraseText  = text,
+                                count       = count,
+                                freqRatio   = count / maxCount,
+                                onClick = {
+                                    state.phrases
+                                        .firstOrNull { it.phraseText == text }
+                                        ?.let { viewModel.speakAgain(it) }
+                                },
+                            )
                         }
                     }
-                    item(key = "divider_after_speak") {
+                }
+
+                // ── Por modo (quando há dados em mais de 1 modo) ──────────────
+                if (state.modeUsage.size > 1) {
+                    item(key = "mode_divider") {
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                         )
+                    }
+                    item(key = "mode_usage") {
+                        ModeUsageRow(usages = state.modeUsage)
                     }
                 }
 
-                // ── Lista agrupada por dia (SEMANA) ou por horário (HOJE) ─────
-                if (state.selectedTab == HistoricoTab.SEMANA) {
-                    val grouped = state.phrases
-                        .groupBy { it.createdAt.toLocalDate() }
-                        .entries
-                        .sortedByDescending { it.key }
+                item(key = "main_divider") {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    )
+                }
 
-                    grouped.forEach { (date, dayPhrases) ->
-                        item(key = "day_$date") {
-                            DayGroupHeader(date = date)
+                // ── Lista principal (varia por aba) ───────────────────────────
+                when (state.selectedTab) {
+
+                    HistoricoTab.AGORA -> {
+                        item(key = "agora_header") {
+                            SectionHeader(title = "Mais recentes")
                         }
-                        items(dayPhrases, key = { "w_${it.id}" }) { phrase ->
+                        items(state.phrases, key = { it.id }) { phrase ->
                             PhraseHistoryItem(
                                 phrase = phrase,
-                                showTime = true,
                                 onSpeakAgain = { viewModel.speakAgain(phrase) },
                             )
                         }
                     }
-                } else if (state.selectedTab == HistoricoTab.HOJE) {
-                    val grouped = state.phrases
-                        .groupBy { timeSlot(it.createdAt.hour) }
-                        .entries
-                        .sortedBy { timeSlotOrder(it.key) }
 
-                    if (grouped.isEmpty()) {
-                        item(key = "empty_today") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 24.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = "Nada registrado hoje",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                    HistoricoTab.HOJE -> {
+                        val bySlot = state.phrases
+                            .groupBy { timeSlot(it.createdAt.hour) }
+                            .entries
+                            .sortedBy { timeSlotOrder(it.key) }
+
+                        if (bySlot.isEmpty()) {
+                            item(key = "hoje_empty") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = "Nada registrado hoje ainda.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        } else {
+                            bySlot.forEach { (slot, slotPhrases) ->
+                                item(key = "slot_$slot") {
+                                    TimeSlotHeader(slot = slot, count = slotPhrases.size)
+                                }
+                                items(slotPhrases, key = { "t_${it.id}" }) { phrase ->
+                                    PhraseHistoryItem(
+                                        phrase = phrase,
+                                        onSpeakAgain = { viewModel.speakAgain(phrase) },
+                                    )
+                                }
                             }
                         }
-                    } else {
-                        grouped.forEach { (slot, slotPhrases) ->
-                            item(key = "slot_$slot") {
-                                TimeSlotHeader(slot = slot, count = slotPhrases.size)
+                    }
+
+                    HistoricoTab.SEMANA -> {
+                        val byDay = state.phrases
+                            .groupBy { it.createdAt.toLocalDate() }
+                            .entries
+                            .sortedByDescending { it.key }
+
+                        byDay.forEach { (date, dayPhrases) ->
+                            item(key = "day_$date") {
+                                DayGroupHeader(date = date)
                             }
-                            items(slotPhrases, key = { "t_${it.id}" }) { phrase ->
+                            items(dayPhrases, key = { "w_${it.id}" }) { phrase ->
                                 PhraseHistoryItem(
                                     phrase = phrase,
-                                    showTime = true,
                                     onSpeakAgain = { viewModel.speakAgain(phrase) },
                                 )
                             }
                         }
                     }
-                } else {
-                    // RECENTES — lista simples com data relativa
-                    item(key = "recent_header") {
-                        SectionHeader(
-                            title = "Mais recentes",
-                            leadingIcon = Icons.Filled.History,
-                            iconTint = MaterialTheme.colorScheme.secondary,
-                        )
-                    }
-                    items(state.phrases, key = { it.id }) { phrase ->
-                        PhraseHistoryItem(
-                            phrase = phrase,
-                            showTime = true,
-                            onSpeakAgain = { viewModel.speakAgain(phrase) },
-                        )
+                }
+            }
+        }
+    }
+}
+
+// ── Helpers de título ─────────────────────────────────────────────────────────
+
+private fun falarNovamenteTitle(tab: HistoricoTab): String = when (tab) {
+    HistoricoTab.AGORA  -> "Mais usadas agora"
+    HistoricoTab.HOJE   -> "Mais usadas hoje"
+    HistoricoTab.SEMANA -> "Mais usadas na semana"
+}
+
+// ── Estado vazio ──────────────────────────────────────────────────────────────
+
+@Composable
+private fun EmptyState(tab: HistoricoTab) {
+    val subtitle = when (tab) {
+        HistoricoTab.AGORA  -> "Nenhuma frase recente.\nComece a comunicar para aparecer aqui."
+        HistoricoTab.HOJE   -> "Nenhuma frase hoje ainda.\nUse os atalhos da Home para começar."
+        HistoricoTab.SEMANA -> "Nenhuma frase esta semana.\nComece a se comunicar para ver o histórico."
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp, vertical = 48.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("💬", style = MaterialTheme.typography.displayLarge)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+// ── Seção: Por modo ───────────────────────────────────────────────────────────
+
+@Composable
+private fun ModeUsageRow(usages: List<ModeUsage>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "Por modo",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 6.dp),
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            usages.forEach { (mode, count) ->
+                Surface(
+                    shape = ShapeChip,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(text = mode.emoji, style = MaterialTheme.typography.bodyMedium)
+                        Column {
+                            Text(
+                                text = mode.label,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = if (count == 1) "1 frase" else "$count frases",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
@@ -239,87 +300,112 @@ fun HistoricoScreen(
     }
 }
 
-// ── Componentes privados ──────────────────────────────────────────────────────
+// ── Card de repetição ─────────────────────────────────────────────────────────
 
 /**
- * Card compacto para a seção "Falar novamente" — scroll horizontal.
- * Mostra texto da frase + quantas vezes foi usada.
+ * Card da seção "Falar novamente".
+ * Barra de frequência relativa no rodapé indica quanto esse item foi usado
+ * em relação ao mais frequente do período.
  */
 @Composable
 private fun SpeakAgainCard(
     phraseText: String,
     count: Int,
+    freqRatio: Float,          // 0f..1f — proporção em relação ao item mais usado
     onClick: () -> Unit,
 ) {
     Card(
         onClick = onClick,
         modifier = Modifier
-            .width(172.dp)
-            .height(96.dp),
+            .width(168.dp)
+            .height(108.dp),
         shape = ShapeCard,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp, MaterialTheme.colorScheme.outlineVariant,
+        ),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
+            modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(
-                text = phraseText,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontWeight = FontWeight.SemiBold,
-                ),
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth(),
+            // Texto + contagem
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 8.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    text = if (count > 1) "$count vezes" else "1 vez",
-                    style = MaterialTheme.typography.labelMedium.copy(
+                    text = phraseText,
+                    style = MaterialTheme.typography.labelLarge.copy(
                         fontWeight = FontWeight.SemiBold,
                     ),
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = if (count > 1) "$count vezes" else "1 vez",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(ShapeCircle)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                            contentDescription = "Falar",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(15.dp),
+                        )
+                    }
+                }
+            }
+
+            // Barra de frequência relativa
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(30.dp)
-                        .clip(ShapeCircle)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                        contentDescription = "Falar",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
+                        .fillMaxHeight()
+                        .fillMaxWidth(freqRatio.coerceIn(0.08f, 1f))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
+                )
             }
         }
     }
 }
 
-/**
- * Cabeçalho de grupo de dia para a aba "Esta semana".
- */
+// ── Cabeçalho de grupo de dia ─────────────────────────────────────────────────
+
 @Composable
 private fun DayGroupHeader(date: LocalDate) {
     val today = LocalDate.now()
     val label = when (date) {
-        today -> "Hoje"
+        today              -> "Hoje"
         today.minusDays(1) -> "Ontem"
-        else -> date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale("pt", "BR"))
+        else               -> date.dayOfWeek
+            .getDisplayName(TextStyle.FULL, Locale("pt", "BR"))
             .replaceFirstChar { it.uppercaseChar() } +
                 " · " + date.format(DateTimeFormatter.ofPattern("dd/MM"))
     }
@@ -333,9 +419,8 @@ private fun DayGroupHeader(date: LocalDate) {
     )
 }
 
-/**
- * Cabeçalho de faixa de horário para a aba "Hoje".
- */
+// ── Cabeçalho de slot de horário ──────────────────────────────────────────────
+
 @Composable
 private fun TimeSlotHeader(slot: String, count: Int) {
     Row(
@@ -366,14 +451,11 @@ private fun TimeSlotHeader(slot: String, count: Int) {
     }
 }
 
-/**
- * Item individual de frase no histórico.
- * Botão de falar proeminente no lado direito.
- */
+// ── Item individual de frase ──────────────────────────────────────────────────
+
 @Composable
 private fun PhraseHistoryItem(
     phrase: PhraseHistory,
-    showTime: Boolean,
     onSpeakAgain: () -> Unit,
 ) {
     Row(
@@ -394,14 +476,24 @@ private fun PhraseHistoryItem(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (showTime) {
-                Spacer(modifier = Modifier.height(5.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Text(
                     text = phrase.createdAt.format(
                         DateTimeFormatter.ofPattern("HH:mm · dd/MM"),
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "${phrase.appMode.emoji} ${phrase.appMode.label}",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Medium,
+                    ),
+                    color = MaterialTheme.colorScheme.secondary,
                 )
             }
         }
@@ -426,7 +518,7 @@ private fun PhraseHistoryItem(
     )
 }
 
-// ── Helpers de horário ────────────────────────────────────────────────────────
+// ── Helpers de slot de horário ────────────────────────────────────────────────
 
 private fun timeSlot(hour: Int): String = when (hour) {
     in 5..11  -> "Manhã"

@@ -43,4 +43,12 @@ interface CommunicationItemDao {
 
     @Query("SELECT COUNT(*) FROM communication_items WHERE isDefault = 0")
     suspend fun countCustomItems(): Int
+
+    /** Snapshot único de itens customizados — usado para sync com Firestore */
+    @Query("SELECT * FROM communication_items WHERE isDefault = 0 ORDER BY createdAt ASC")
+    suspend fun getAllCustomItemsOnce(): List<CommunicationItemEntity>
+
+    /** Snapshot único de todos os itens (default + custom) com favorites — usado para sync de favoritos */
+    @Query("SELECT * FROM communication_items WHERE isFavorite = 1")
+    suspend fun getAllFavoritesOnce(): List<CommunicationItemEntity>
 }

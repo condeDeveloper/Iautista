@@ -6,17 +6,17 @@ import javax.inject.Inject
 
 /**
  * Upsert do perfil da criança.
- * Se já existir (id != 0), faz update; caso contrário, insere.
+ * Se já existir (id != 0), faz update; caso contrário, insere e retorna o novo ID.
  */
 class SaveChildProfileUseCase @Inject constructor(
     private val repository: ProfileRepository,
 ) {
-    suspend operator fun invoke(profile: ChildProfile) {
-        val existing = repository.getProfileOnce()
-        if (existing == null) {
-            repository.saveProfile(profile)
+    suspend operator fun invoke(profile: ChildProfile): Long {
+        return if (profile.id != 0L) {
+            repository.updateProfile(profile)
+            profile.id
         } else {
-            repository.updateProfile(profile.copy(id = existing.id))
+            repository.saveProfile(profile)
         }
     }
 }

@@ -9,18 +9,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.SubcomposeAsyncImage
 import com.count.iautista.domain.model.ButtonSize
 import com.count.iautista.domain.model.CommunicationItem
 import com.count.iautista.ui.theme.ShapeCard
 import com.count.iautista.ui.theme.ShapeEmojiContainer
 
 // V2: container de emoji consistente com CategoryCard, estados de seleção mais polidos
+// V2.1: suporte a pictogramas ARASAAC via Coil, com emoji como fallback
 @Composable
 fun CommunicationItemCard(
     item: CommunicationItem,
@@ -74,7 +76,6 @@ fun CommunicationItemCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            // Container do emoji — estilo uniforme com CategoryCard
             Box(
                 modifier = Modifier
                     .size(emojiContainerSize)
@@ -82,11 +83,37 @@ fun CommunicationItemCard(
                     .background(emojiContainerColor),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = item.emoji.ifBlank { "📌" },
-                    fontSize = emojiFontSize,
-                    textAlign = TextAlign.Center,
-                )
+                val imageUrl = item.displayImageUri
+                if (imageUrl != null) {
+                    SubcomposeAsyncImage(
+                        model = imageUrl,
+                        contentDescription = item.text,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .size(emojiContainerSize)
+                            .clip(ShapeEmojiContainer),
+                        loading = {
+                            Text(
+                                text = item.emoji.ifBlank { "📌" },
+                                fontSize = emojiFontSize,
+                                textAlign = TextAlign.Center,
+                            )
+                        },
+                        error = {
+                            Text(
+                                text = item.emoji.ifBlank { "📌" },
+                                fontSize = emojiFontSize,
+                                textAlign = TextAlign.Center,
+                            )
+                        },
+                    )
+                } else {
+                    Text(
+                        text = item.emoji.ifBlank { "📌" },
+                        fontSize = emojiFontSize,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(

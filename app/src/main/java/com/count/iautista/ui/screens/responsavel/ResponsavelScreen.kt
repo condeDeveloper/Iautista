@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -32,7 +33,9 @@ import com.count.iautista.ui.theme.*
 @Composable
 fun ResponsavelScreen(
     onNavigateToPinSetup: () -> Unit,
+    onNavigateToGerenciarPerfis: () -> Unit = {},
     onNavigateToGerenciarItens: () -> Unit,
+    onNavigateToGerenciarRotina: () -> Unit,
     onNavigateToConfiguracoes: () -> Unit,
     onNavigateToConta: () -> Unit,
     onRequirePin: () -> Unit,
@@ -78,7 +81,7 @@ fun ResponsavelScreen(
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
                 modifier = Modifier
                     .padding(horizontal = 20.dp)
-                    .padding(top = 20.dp, bottom = 16.dp),
+                    .padding(top = 24.dp, bottom = 16.dp),
             )
         }
 
@@ -86,7 +89,7 @@ fun ResponsavelScreen(
         item {
             ProfileCard(
                 name = state.profile?.name?.ifBlank { null },
-                onClick = { /* navegar para edição de perfil */ },
+                onClick = onNavigateToGerenciarPerfis,
             )
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -102,6 +105,22 @@ fun ResponsavelScreen(
                     title = "Gerenciar itens",
                     subtitle = "Adicionar, editar e remover itens",
                     onClick = onNavigateToGerenciarItens,
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // ── Seção: Rotina ──────────────────────────────────────────────────────
+        item {
+            SettingsSectionLabel(title = "Rotina")
+            SettingsGroup {
+                SettingsRow(
+                    icon = Icons.Filled.CalendarToday,
+                    iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    title = "Gerenciar rotina",
+                    subtitle = "Adicionar e organizar atividades do dia",
+                    onClick = onNavigateToGerenciarRotina,
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -201,7 +220,7 @@ private fun ProfileCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
-            .clickable(onClick = onClick),
+            .clickable(role = Role.Button, onClick = onClick),
         shape = ShapeCard,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -252,7 +271,7 @@ private fun ProfileCard(
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
-                    text = "Toque para editar o perfil",
+                    text = "Toque para gerenciar perfis",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                 )
@@ -331,7 +350,7 @@ private fun SettingsRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .clickable(role = Role.Button, onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -402,7 +421,7 @@ private fun PremiumBanner(onClick: () -> Unit) {
                     colors = listOf(ColorPrimary, ColorTertiary),
                 ),
             )
-            .clickable(onClick = onClick),
+            .clickable(role = Role.Button, onClick = onClick),
     ) {
         Row(
             modifier = Modifier

@@ -93,6 +93,7 @@ fun PhraseHistoryEntity.toDomain() = PhraseHistory(
         .atZone(ZoneId.systemDefault())
         .toLocalDateTime(),
     hourOfDay = hourOfDay,
+    appMode = runCatching { AppMode.valueOf(appMode) }.getOrDefault(AppMode.CASA),
 )
 
 fun PhraseHistory.toEntity() = PhraseHistoryEntity(
@@ -104,6 +105,7 @@ fun PhraseHistory.toEntity() = PhraseHistoryEntity(
         .toInstant()
         .toEpochMilli(),
     hourOfDay = hourOfDay,
+    appMode = appMode.name,
 )
 
 // ── ChildProfile ─────────────────────────────────────────────────────────────

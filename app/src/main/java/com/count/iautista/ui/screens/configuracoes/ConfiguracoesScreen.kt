@@ -1,5 +1,7 @@
 package com.count.iautista.ui.screens.configuracoes
 
+import android.Manifest
+import android.os.Build
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,15 +17,22 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.count.iautista.domain.model.AppTheme
 import com.count.iautista.domain.model.ButtonSize
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun ConfiguracoesScreen(
     onBack: () -> Unit,
     viewModel: ConfiguracoesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+
+    val notificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
+    } else null
 
     Scaffold(
         topBar = {
@@ -193,6 +202,39 @@ fun ConfiguracoesScreen(
                 }
             }
             item {
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            }
+
+            // ── Notificações ──────────────────────────────────────────────────
+            item {
+                PrefSectionTitle("Notificações")
+            }
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Lembretes de rotina", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            text = "Avisar quando chegar a hora de uma atividade",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = state.notificationsEnabled,
+                        onCheckedChange = { enabled ->
+                            if (enabled && notificationPermission != null &&
+                                !notificationPermission.status.isGranted) {
+                                notificationPermission.launchPermissionRequest()
+                            }
+                            viewModel.setNotificationsEnabled(enabled)
+                        },
+                    )
+                }
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             }
 

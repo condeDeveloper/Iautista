@@ -10,12 +10,12 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mood
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -23,15 +23,51 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.count.iautista.domain.model.AppMode
 import com.count.iautista.domain.model.ButtonSize
 import com.count.iautista.domain.model.RoutineItem
 import com.count.iautista.ui.components.CommunicationItemCard
-import com.count.iautista.ui.components.RoutineCard
 import com.count.iautista.ui.components.SectionHeader
-import com.count.iautista.ui.theme.ColorAccentYellow
+import com.count.iautista.ui.sound.LocalSoundManager
+import com.count.iautista.ui.theme.ShapeButton
 import com.count.iautista.ui.theme.ShapeCard
 import com.count.iautista.ui.theme.ShapeChip
+import com.count.iautista.ui.theme.ShapeCircle
 import com.count.iautista.ui.theme.ShapeEmojiContainer
+
+// ── Dados contextuais por modo ────────────────────────────────────────────────
+// Os itens vêm de AppMode.items — fonte única de verdade no domínio.
+
+private fun subtitleFor(mode: AppMode): String = when (mode) {
+    AppMode.CASA    -> "O que você precisa agora?"
+    AppMode.ESCOLA  -> "O que quer dizer na escola?"
+    AppMode.TERAPIA -> "Como você está se sentindo?"
+}
+
+private fun contextHintFor(mode: AppMode): String = when (mode) {
+    AppMode.CASA    -> "Nenhuma atividade agora · explore abaixo"
+    AppMode.ESCOLA  -> "Em sala · use os atalhos para se comunicar"
+    AppMode.TERAPIA -> "Em sessão · escolha como você está"
+}
+
+private val universalNeeds = listOf(
+    "🚽" to "Banheiro",
+    "💧" to "Água",
+    "🤕" to "Dói",
+    "🆘" to "Ajuda",
+    "😴" to "Cansado",
+)
+
+private val emotions = listOf(
+    "😊" to "Feliz",
+    "😢" to "Triste",
+    "😠" to "Bravo",
+    "😨" to "Assustado",
+    "🤕" to "Dói",
+    "😴" to "Cansado",
+)
+
+// ── Tela principal ────────────────────────────────────────────────────────────
 
 @Composable
 fun InicioScreen(
@@ -39,19 +75,20 @@ fun InicioScreen(
     viewModel: InicioViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val sound = LocalSoundManager.current
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 32.dp),
     ) {
 
-        // ── 1. SAUDAÇÃO ──────────────────────────────────────────────────────
+        // ── 1. SAUDAÇÃO ───────────────────────────────────────────────────────
         item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
-                    .padding(top = 24.dp, bottom = 16.dp),
+                    .padding(top = 24.dp, bottom = 4.dp),
             ) {
                 Text(
                     text = state.greeting,
@@ -60,133 +97,115 @@ fun InicioScreen(
                     ),
                     color = MaterialTheme.colorScheme.onBackground,
                 )
-                Spacer(Modifier.height(5.dp))
+                Spacer(Modifier.height(2.dp))
                 Text(
-                    text = "O que você precisa?",
+                    text = subtitleFor(state.appMode),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
 
-        // ── 2. ATALHOS RÁPIDOS ───────────────────────────────────────────────
-        // Os 4 primeiros formam um grid 2×2 limpo.
-        // "Ajuda" ocupa a linha toda — layout intencional, não sobra de grid.
+        // ── 2. SELETOR DE MODO ────────────────────────────────────────────────
         item {
-            val gridActions = listOf(
-                "🚽" to "Banheiro",
-                "💧" to "Água",
-                "🍽️" to "Comida",
-                "😴" to "Cansado",
+            ModeSelectorV2(
+                selected = state.appMode,
+                onSelect = { viewModel.setMode(it) },
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 12.dp, bottom = 16.dp),
             )
-            Column(
-                modifier = Modifier.padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                gridActions.chunked(2).forEach { row ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        row.forEach { (emoji, label) ->
-                            QuickCard(
-                                emoji = emoji,
-                                label = label,
-                                onClick = { viewModel.speakPhrase(label) },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-                }
-                // "Ajuda" — ação de urgência, linha inteira, layout horizontal
-                QuickCard(
-                    emoji = "🆘",
-                    label = "Ajuda",
-                    onClick = { viewModel.speakPhrase("Ajuda") },
-                    modifier = Modifier.fillMaxWidth(),
-                    isWide = true,
-                )
-            }
         }
 
-        // ── 3. COMO ESTOU — scroll horizontal de emoções ────────────────────
+        // ── 3. AGORA (rotina ou contexto) ─────────────────────────────────────
         item {
-            SectionHeader(
-                title = "Como estou",
-                leadingIcon = Icons.Filled.Mood,
+            SmartNowCard(
+                routineItem = state.routineNow.firstOrNull(),
+                appMode = state.appMode,
+                onClick = {
+                    state.routineNow.firstOrNull()?.let { item ->
+                        sound.playTap()
+                        viewModel.speakPhrase(item.text)
+                    }
+                },
+                modifier = Modifier.padding(horizontal = 20.dp),
             )
+            Spacer(Modifier.height(16.dp))
+        }
+
+        // ── 4. ATALHOS CONTEXTUAIS ────────────────────────────────────────────
+        // Fonte: GetContextualSuggestionsUseCase — prioriza histórico recente e
+        // faixa horária antes de cair nos itens padrão do modo.
+        item {
+            SectionHeader(title = "Para agora · ${state.appMode.label}")
+        }
+        item {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(state.contextSuggestions) { suggestion ->
+                    QuickCard(
+                        emoji = suggestion.emoji,
+                        label = suggestion.label,
+                        onClick = {
+                            sound.playTap()
+                            viewModel.speakPhrase(suggestion.label)
+                        },
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+        }
+
+        // ── 5. NECESSIDADES RÁPIDAS (universal) ───────────────────────────────
+        item {
+            SectionHeader(title = "Necessidades")
         }
         item {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(
-                    listOf(
-                        "😊" to "Feliz",
-                        "😢" to "Triste",
-                        "😠" to "Bravo",
-                        "😨" to "Assustado",
-                        "🤕" to "Dói",
-                        "😴" to "Cansado",
+                items(universalNeeds) { (emoji, label) ->
+                    NeedChip(
+                        emoji = emoji,
+                        label = label,
+                        onClick = {
+                            sound.playTap()
+                            viewModel.speakPhrase(label)
+                        },
                     )
-                ) { (emoji, label) ->
+                }
+            }
+        }
+
+        // ── 6. COMO ESTOU ─────────────────────────────────────────────────────
+        item {
+            SectionHeader(title = "Como estou", leadingIcon = Icons.Filled.Mood)
+        }
+        item {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(emotions) { (emoji, label) ->
                     EmotionCard(
                         emoji = emoji,
                         label = label,
-                        onClick = { viewModel.speakPhrase(label) },
+                        onClick = {
+                            sound.playTap()
+                            viewModel.speakPhrase(label)
+                        },
                     )
                 }
             }
         }
-        // Respiro extra após a seção de emoções
-        item { Spacer(Modifier.height(6.dp)) }
 
-        // ── 4. AGORA — card featured da atividade atual ──────────────────────
-        if (state.routineNow.isNotEmpty()) {
-            item {
-                SectionHeader(
-                    title = "Agora",
-                    leadingIcon = Icons.Filled.Star,
-                    iconTint = ColorAccentYellow,   // estrela dourada — seção principal
-                )
-            }
-            item {
-                val nowItem = state.routineNow.first()
-                NowFeaturedCard(
-                    item = nowItem,
-                    onClick = { viewModel.speakPhrase(nowItem.text) },
-                )
-            }
-            // Outros itens "agora" em scroll menor
-            if (state.routineNow.size > 1) {
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(
-                            start = 20.dp,
-                            end = 20.dp,
-                            top = 10.dp,
-                        ),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        items(state.routineNow.drop(1)) { item ->
-                            RoutineCard(
-                                item = item,
-                                onClick = { viewModel.speakPhrase(item.text) },
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // ── 5. FALAR NOVAMENTE — chips horizontais ───────────────────────────
+        // ── 7. FALAR NOVAMENTE ────────────────────────────────────────────────
         if (state.recentPhrases.isNotEmpty()) {
             item {
-                SectionHeader(
-                    title = "Falar novamente",
-                    leadingIcon = Icons.Filled.History,
-                )
+                SectionHeader(title = "Falar novamente", leadingIcon = Icons.Filled.History)
             }
             item {
                 LazyRow(
@@ -195,17 +214,15 @@ fun InicioScreen(
                 ) {
                     items(state.recentPhrases.take(6)) { phrase ->
                         ElevatedCard(
-                            onClick = { viewModel.speakPhrase(phrase.phraseText) },
+                            onClick = {
+                                sound.playTap()
+                                viewModel.speakPhrase(phrase.phraseText)
+                            },
                             shape = ShapeChip,
-                            elevation = CardDefaults.elevatedCardElevation(
-                                defaultElevation = 1.dp,
-                            ),
+                            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
                         ) {
                             Row(
-                                modifier = Modifier.padding(
-                                    horizontal = 14.dp,
-                                    vertical = 11.dp,
-                                ),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
@@ -230,13 +247,10 @@ fun InicioScreen(
             }
         }
 
-        // ── 6. MAIS USADAS — scroll horizontal (opcional) ───────────────────
+        // ── 8. MAIS USADAS ────────────────────────────────────────────────────
         if (state.mostUsedItems.isNotEmpty()) {
             item {
-                SectionHeader(
-                    title = "Mais usadas",
-                    leadingIcon = Icons.Filled.Favorite,
-                )
+                SectionHeader(title = "Mais usadas", leadingIcon = Icons.Filled.Favorite)
             }
             item {
                 LazyRow(
@@ -246,8 +260,11 @@ fun InicioScreen(
                     items(state.mostUsedItems) { item ->
                         CommunicationItemCard(
                             item = item,
-                            onClick = { viewModel.speakItem(item) },
-                            buttonSize = ButtonSize.MEDIUM,
+                            onClick = {
+                                sound.playTap()
+                                viewModel.speakItem(item)
+                            },
+                            buttonSize = ButtonSize.SMALL,
                         )
                     }
                 }
@@ -256,95 +273,237 @@ fun InicioScreen(
     }
 }
 
+// ── Seletor de modo V2 ────────────────────────────────────────────────────────
+
+@Composable
+private fun ModeSelectorV2(
+    selected: AppMode,
+    onSelect: (AppMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = ShapeChip,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 0.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            AppMode.entries.forEach { mode ->
+                val isSelected = mode == selected
+                Surface(
+                    onClick = { onSelect(mode) },
+                    modifier = Modifier.weight(1f),
+                    shape = ShapeButton,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                            else Color.Transparent,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(text = mode.emoji, fontSize = 18.sp)
+                        Text(
+                            text = mode.label,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            ),
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Card "Agora" inteligente ──────────────────────────────────────────────────
+
+@Composable
+private fun SmartNowCard(
+    routineItem: RoutineItem?,
+    appMode: AppMode,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (routineItem != null) {
+        ElevatedCard(
+            onClick = onClick,
+            modifier = modifier.fillMaxWidth(),
+            shape = ShapeCard,
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+            ),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(ShapeCard)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center,
+                ) { Text(text = routineItem.emoji, fontSize = 34.sp) }
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = "Agora",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                            ),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Surface(
+                            shape = ShapeCircle,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        ) {
+                            Text(
+                                text = "${appMode.emoji} ${appMode.label}",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                    Text(
+                        text = routineItem.text,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                        ),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+        }
+    } else {
+        Surface(
+            modifier = modifier.fillMaxWidth(),
+            shape = ShapeCard,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(ShapeEmojiContainer)
+                        .background(MaterialTheme.colorScheme.surface),
+                    contentAlignment = Alignment.Center,
+                ) { Text(text = appMode.emoji, fontSize = 26.sp) }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = appMode.label,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = contextHintFor(appMode),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
 // ── Componentes privados ──────────────────────────────────────────────────────
 
-/**
- * Card compacto para o grid de atalhos rápidos.
- *
- * [isWide] = false → layout vertical (coluna), para uso em grid 2 colunas.
- * [isWide] = true  → layout horizontal (linha), para uso em row inteira (ex: "Ajuda").
- */
 @Composable
 private fun QuickCard(
     emoji: String,
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isWide: Boolean = false,
 ) {
     ElevatedCard(
         onClick = onClick,
-        modifier = modifier.height(if (isWide) 64.dp else 92.dp),
+        modifier = modifier
+            .width(92.dp)
+            .height(100.dp),
         shape = ShapeCard,
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
     ) {
-        if (isWide) {
-            Row(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 12.dp, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(ShapeEmojiContainer)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(text = emoji, fontSize = 22.sp)
-                }
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(vertical = 12.dp, horizontal = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(ShapeEmojiContainer)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(text = emoji, fontSize = 22.sp)
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
+                    .size(44.dp)
+                    .clip(ShapeEmojiContainer)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) { Text(text = emoji, fontSize = 22.sp) }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
     }
 }
 
-/**
- * Card de emoção para a seção "Como estou".
- */
 @Composable
-private fun EmotionCard(
+private fun NeedChip(
     emoji: String,
     label: String,
     onClick: () -> Unit,
 ) {
+    ElevatedCard(
+        onClick = onClick,
+        shape = ShapeChip,
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(text = emoji, fontSize = 18.sp)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontWeight = FontWeight.SemiBold,
+                ),
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmotionCard(emoji: String, label: String, onClick: () -> Unit) {
     ElevatedCard(
         onClick = onClick,
         modifier = Modifier.size(92.dp),
@@ -364,78 +523,14 @@ private fun EmotionCard(
                     .clip(ShapeEmojiContainer)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
-            ) {
-                Text(text = emoji, fontSize = 26.sp)
-            }
+            ) { Text(text = emoji, fontSize = 26.sp) }
             Spacer(Modifier.height(5.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.SemiBold,
-                ),
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
-        }
-    }
-}
-
-/**
- * Card destaque da atividade atual da rotina.
- * É o bloco principal da tela Início — hierarquia máxima.
- */
-@Composable
-private fun NowFeaturedCard(
-    item: RoutineItem,
-    onClick: () -> Unit,
-) {
-    ElevatedCard(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        shape = ShapeCard,
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-        ),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(90.dp)
-                    .clip(ShapeCard)
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(text = item.emoji, fontSize = 48.sp)
-            }
-            Column(
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = "Atividade de agora",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(
-                    text = item.text,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                    ),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
         }
     }
 }

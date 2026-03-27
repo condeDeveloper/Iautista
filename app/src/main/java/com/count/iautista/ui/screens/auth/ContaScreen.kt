@@ -9,8 +9,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import android.app.Activity
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.count.iautista.ui.screens.responsavel.ResponsavelViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -19,11 +22,18 @@ fun ContaScreen(
     onNavigateToLogin: () -> Unit,
     responsavelViewModel: ResponsavelViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel(),
+    billingViewModel: BillingViewModel = hiltViewModel(),
 ) {
     val responsavelState by responsavelViewModel.uiState.collectAsState()
     val authState by authViewModel.uiState.collectAsState()
+    val isPremium by billingViewModel.isPremium.collectAsState()
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var isSyncing by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Minha conta") },
@@ -62,11 +72,40 @@ fun ContaScreen(
                 AccountInfoItem(
                     icon = Icons.Filled.Star,
                     title = "Plano atual",
-                    value = if (responsavelState.preferences.isPremium) "Premium ✨" else "Gratuito",
+                    value = if (isPremium) "Premium" else "Gratuito",
                 )
                 HorizontalDivider()
 
-                if (!responsavelState.preferences.isPremium) {
+                // Backup manual
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = {
+                        isSyncing = true
+                        responsavelViewModel.pushBackup { success ->
+                            isSyncing = false
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    if (success) "Backup realizado com sucesso!"
+                                    else "Erro ao fazer backup. Verifique sua conexão."
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isSyncing,
+                ) {
+                    if (isSyncing) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                    } else {
+                        Icon(Icons.Filled.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(if (isSyncing) "Fazendo backup..." else "Fazer backup agora")
+                }
+                HorizontalDivider()
+
+                if (!isPremium) {
                     Spacer(modifier = Modifier.height(24.dp))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -78,12 +117,24 @@ fun ContaScreen(
                             Text("Conheça o Premium", style = MaterialTheme.typography.titleMedium)
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                "Itens ilimitados, backup automático e mais.",
+                                "Itens ilimitados, histórico completo e backup automático.",
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Spacer(modifier = Modifier.height(12.dp))
-                            Button(onClick = { /* navegar para premium */ }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Ver planos")
+                            Button(
+                                onClick = {
+                                    (context as? Activity)?.let { billingViewModel.launchBillingFlow(it) }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Assinar Premium")
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            TextButton(
+                                onClick = { billingViewModel.restorePurchases() },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Restaurar compra", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }

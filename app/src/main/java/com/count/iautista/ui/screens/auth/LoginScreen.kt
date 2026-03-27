@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.count.iautista.ui.theme.ColorPrimaryContainer
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -36,14 +37,28 @@ fun LoginScreen(
     val state by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current
     var showPassword by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(state.isLoggedIn) {
         if (state.isLoggedIn) onLoginSuccess()
     }
 
+    LaunchedEffect(state.resetEmailSent) {
+        if (state.resetEmailSent) {
+            scope.launch {
+                snackbarHostState.showSnackbar("E-mail de redefinição enviado. Verifique sua caixa de entrada.")
+            }
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { innerPadding ->
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .padding(innerPadding)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -139,7 +154,20 @@ fun LoginScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // Esqueci a senha
+        TextButton(
+            onClick = { viewModel.sendPasswordResetEmail() },
+            modifier = Modifier.align(Alignment.End),
+            enabled = !state.isLoading,
+        ) {
+            Text(
+                text = "Esqueci minha senha",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Botão entrar
         Button(
@@ -178,4 +206,5 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
     }
+    } // Scaffold
 }

@@ -3,6 +3,8 @@ package com.count.iautista.ui.screens.comunicar
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.count.iautista.data.audio.TtsManager
+import com.count.iautista.data.preferences.UserPreferencesDataStore
+import com.count.iautista.domain.model.AppMode
 import com.count.iautista.domain.model.CommunicationCategory
 import com.count.iautista.domain.model.CommunicationItem
 import com.count.iautista.domain.usecase.comunicar.BuildPhraseUseCase
@@ -11,6 +13,7 @@ import com.count.iautista.domain.usecase.comunicar.GetFavoriteItemsUseCase
 import com.count.iautista.domain.usecase.comunicar.GetItemsByCategoryUseCase
 import com.count.iautista.domain.usecase.comunicar.ToggleFavoriteUseCase
 import com.count.iautista.domain.usecase.comunicar.TrackItemUsageUseCase
+import com.count.iautista.domain.usecase.historico.SaveQuickPhraseUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
@@ -19,11 +22,13 @@ import javax.inject.Inject
 
 data class ComunicarUiState(
     val categories: List<CommunicationCategory> = emptyList(),
+    val featuredCategoryIds: Set<Long> = emptySet(),
     val favorites: List<CommunicationItem> = emptyList(),
     val items: List<CommunicationItem> = emptyList(),
     val selectedCategory: CommunicationCategory? = null,
     val phraseItems: List<CommunicationItem> = emptyList(),
     val isLoading: Boolean = false,
+    val appMode: AppMode = AppMode.CASA,
 )
 
 @HiltViewModel
@@ -34,7 +39,9 @@ class ComunicarViewModel @Inject constructor(
     private val buildPhrase: BuildPhraseUseCase,
     private val trackUsage: TrackItemUsageUseCase,
     private val toggleFav: ToggleFavoriteUseCase,
+    private val saveQuickPhrase: SaveQuickPhraseUseCase,
     private val ttsManager: TtsManager,
+    private val prefsDataStore: UserPreferencesDataStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ComunicarUiState())
@@ -43,16 +50,31 @@ class ComunicarViewModel @Inject constructor(
     private var categoryJob: Job? = null
 
     init {
+        // Combina categorias + modo: ordena por prioridade e marca quais são destaque
         viewModelScope.launch {
-            getCategories().collect { cats ->
-                _uiState.update { it.copy(categories = cats) }
+            combine(
+                getCategories(),
+                prefsDataStore.preferences.map { it.appMode },
+            ) { cats, mode ->
+                val order = mode.pinnedCategoryIds
+                val sorted = cats.sortedBy { cat ->
+                    val idx = order.indexOf(cat.id)
+                    if (idx >= 0) idx else (order.size + cat.order)
+                }
+                Triple(sorted, order.take(FEATURED_COUNT).toSet(), mode)
+            }.collect { (sorted, featuredIds, mode) ->
+                _uiState.update {
+                    it.copy(categories = sorted, featuredCategoryIds = featuredIds, appMode = mode)
+                }
             }
         }
         viewModelScope.launch {
-            getFavorites().collect { favs ->
-                _uiState.update { it.copy(favorites = favs) }
-            }
+            getFavorites().collect { favs -> _uiState.update { it.copy(favorites = favs) } }
         }
+    }
+
+    private companion object {
+        const val FEATURED_COUNT = 4
     }
 
     fun loadCategory(categoryId: Long) {
@@ -92,6 +114,12 @@ class ComunicarViewModel @Inject constructor(
     fun speakItem(item: CommunicationItem) {
         ttsManager.speakOrPlayAudio(item.text, item.audioUri)
         viewModelScope.launch { trackUsage(item) }
+    }
+
+    /** Fala uma sugestão contextual rápida e salva no histórico com o modo atual. */
+    fun speakQuick(text: String) {
+        ttsManager.speak(text)
+        viewModelScope.launch { saveQuickPhrase(text, _uiState.value.appMode) }
     }
 
     fun toggleFavorite(item: CommunicationItem) {

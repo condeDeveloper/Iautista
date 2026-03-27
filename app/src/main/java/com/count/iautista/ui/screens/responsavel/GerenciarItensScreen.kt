@@ -19,6 +19,7 @@ import com.count.iautista.domain.model.CommunicationItem
 @Composable
 fun GerenciarItensScreen(
     onBack: () -> Unit,
+    onNavigateToAddItem: (categoryId: Long?) -> Unit = {},
     viewModel: GerenciarItensViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -49,7 +50,7 @@ fun GerenciarItensScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { /* TODO: navegar para adicionar item */ },
+                onClick = { onNavigateToAddItem(state.expandedCategoryId) },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text("Novo item") },
             )

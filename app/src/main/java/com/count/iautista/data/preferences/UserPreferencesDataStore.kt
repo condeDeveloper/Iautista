@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import com.count.iautista.domain.model.AppMode
 import com.count.iautista.domain.model.AppTheme
 import com.count.iautista.domain.model.ButtonSize
 import com.count.iautista.domain.model.UserPreferences
@@ -33,6 +34,10 @@ class UserPreferencesDataStore @Inject constructor(
         val PIN_HASH               = stringPreferencesKey("pin_hash")  // SHA-256, nunca texto plano
         val IS_PREMIUM             = booleanPreferencesKey("is_premium")
         val IS_LOGGED_IN           = booleanPreferencesKey("is_logged_in")
+        val LAST_RESET_DATE        = stringPreferencesKey("last_reset_date") // "yyyy-MM-dd"
+        val APP_MODE               = stringPreferencesKey("app_mode")
+        val NOTIFICATIONS_ENABLED  = booleanPreferencesKey("notifications_enabled")
+        val ACTIVE_CHILD_PROFILE_ID = longPreferencesKey("active_child_profile_id")
     }
 
     // ── Flow principal de preferências ───────────────────────────────────────
@@ -52,6 +57,10 @@ class UserPreferencesDataStore @Inject constructor(
                 onboardingCompleted = prefs[Keys.ONBOARDING_COMPLETED] ?: false,
                 pinConfigured      = prefs[Keys.PIN_CONFIGURED] ?: false,
                 isPremium          = prefs[Keys.IS_PREMIUM] ?: false,
+                appMode            = prefs[Keys.APP_MODE]
+                    ?.let { runCatching { AppMode.valueOf(it) }.getOrDefault(AppMode.CASA) }
+                    ?: AppMode.CASA,
+                notificationsEnabled = prefs[Keys.NOTIFICATIONS_ENABLED] ?: true,
             )
         }
 
@@ -91,6 +100,34 @@ class UserPreferencesDataStore @Inject constructor(
 
     suspend fun setPremium(isPremium: Boolean) {
         context.dataStore.edit { it[Keys.IS_PREMIUM] = isPremium }
+    }
+
+    suspend fun setAppMode(mode: AppMode) {
+        context.dataStore.edit { it[Keys.APP_MODE] = mode.name }
+    }
+
+    suspend fun setNotificationsEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.NOTIFICATIONS_ENABLED] = enabled }
+    }
+
+    val activeChildProfileId: Flow<Long> = context.dataStore.data
+        .catch { emit(emptyPreferences()) }
+        .map { it[Keys.ACTIVE_CHILD_PROFILE_ID] ?: 0L }
+
+    suspend fun setActiveChildProfileId(id: Long) {
+        context.dataStore.edit { it[Keys.ACTIVE_CHILD_PROFILE_ID] = id }
+    }
+
+    // ── Reset diário da rotina ────────────────────────────────────────────────
+
+    suspend fun getLastResetDate(): String =
+        context.dataStore.data
+            .catch { emit(emptyPreferences()) }
+            .map { it[Keys.LAST_RESET_DATE] ?: "" }
+            .first()
+
+    suspend fun setLastResetDate(date: String) {
+        context.dataStore.edit { it[Keys.LAST_RESET_DATE] = date }
     }
 
     // ── PIN ──────────────────────────────────────────────────────────────────

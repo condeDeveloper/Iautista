@@ -31,8 +31,29 @@ class RoutineRepositoryImpl @Inject constructor(
     override suspend fun updateStatus(itemId: Long, status: RoutineStatus) =
         routineItemDao.updateStatus(itemId, status.name)
 
+    override suspend fun getAllItemsOnce(): List<RoutineItem> =
+        routineItemDao.getAllOnce().map { it.toDomain() }
+
     override suspend fun resetDailyRoutine() =
         routineItemDao.resetDailyRoutine()
+
+    override suspend fun resetWithSchedule(currentHour: Int) {
+        val items = routineItemDao.getAllOnce().sortedBy { it.order }
+        // 1. Reseta todos os ativos para LATER
+        routineItemDao.resetDailyRoutine()
+        if (items.isEmpty()) return
+        // 2. Encontra o item cuja hora sugerida é a mais próxima sem ultrapassar currentHour.
+        //    Se nenhum item tem suggestedHour <= currentHour, usa o primeiro por ordem.
+        val nowIndex = items
+            .indexOfLast { (it.suggestedHour ?: 0) <= currentHour }
+            .let { if (it < 0) 0 else it }
+        // 3. Define NOW
+        routineItemDao.updateStatus(items[nowIndex].id, "NOW")
+        // 4. Define NEXT (primeiro item após o NOW)
+        if (nowIndex + 1 < items.size) {
+            routineItemDao.updateStatus(items[nowIndex + 1].id, "NEXT")
+        }
+    }
 
     override suspend fun markCurrentAsDone() =
         routineItemDao.markCurrentAsDone()

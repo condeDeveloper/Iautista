@@ -35,7 +35,7 @@ fun SectionHeader(
             if (leadingIcon != null) {
                 Icon(
                     imageVector = leadingIcon,
-                    contentDescription = null,
+                    contentDescription = title,
                     tint = resolvedTint,
                     modifier = Modifier.size(20.dp),
                 )

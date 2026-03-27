@@ -4,8 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
-    // ADAPTAÇÃO: plugin desativado — requer google-services.json real do Firebase
-    // alias(libs.plugins.google.services)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -75,22 +74,36 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // ADAPTAÇÃO: Firebase desativado — auth substituída por implementação local
-    // Para reativar: descomentar as linhas abaixo e o plugin google.services acima,
-    // e restaurar a versão original de AuthRepository.kt
-    // implementation(platform(libs.firebase.bom))
-    // implementation(libs.firebase.auth)
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.kotlinx.coroutines.play.services)
+
+    // Accompanist
+    implementation(libs.accompanist.permissions)
+
+    // Google Play Billing
+    implementation(libs.billing.ktx)
 
     // Coil
     implementation(libs.coil.compose)
+
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
     // Test
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.mockk.android)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)

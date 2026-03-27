@@ -1,26 +1,36 @@
 {
   "project_info": {
-    "project_number": "SEU_PROJECT_NUMBER",
-    "project_id": "seu-projeto-firebase",
-    "storage_bucket": "seu-projeto-firebase.appspot.com"
+    "project_number": "972412367579",
+    "project_id": "iautista-bfa06",
+    "storage_bucket": "iautista-bfa06.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:SEU_PROJECT_NUMBER:android:HASH",
+        "mobilesdk_app_id": "1:972412367579:android:ba169056d071fac37292fe",
         "android_client_info": {
           "package_name": "com.count.iautista"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "972412367579-rueimte4dalpp9dlc9trp2kh0p4i2qnv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "SUA_API_KEY_AQUI"
+          "current_key": "AIzaSyDv9yQiBfsdJGsKZwioZZBV53J6WmpfZ38"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "972412367579-rueimte4dalpp9dlc9trp2kh0p4i2qnv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

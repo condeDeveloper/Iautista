@@ -31,6 +31,13 @@ interface PhraseHistoryDao {
 
     @Query("SELECT COUNT(*) FROM phrase_history")
     suspend fun count(): Int
+
+    /** Snapshot único das N frases mais recentes — usado para sync com Firestore */
+    @Query("SELECT * FROM phrase_history ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun getRecentOnce(limit: Int): List<PhraseHistoryEntity>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(phrases: List<PhraseHistoryEntity>)
 }
 
 data class PhraseUsageResult(val phraseText: String, val count: Int)

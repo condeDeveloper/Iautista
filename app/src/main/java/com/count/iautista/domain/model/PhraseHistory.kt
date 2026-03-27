@@ -9,6 +9,7 @@ data class PhraseHistory(
     val createdAt: LocalDateTime = LocalDateTime.now(),
     // hourOfDay calculado a partir do createdAt — referência ao parâmetro precedente é válido em Kotlin
     val hourOfDay: Int = createdAt.hour,
+    val appMode: AppMode = AppMode.CASA,
 ) {
     val isMultiWord: Boolean get() = phraseText.contains(" ")
 }

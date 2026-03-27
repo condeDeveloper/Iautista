@@ -10,4 +10,5 @@ data class PhraseHistoryEntity(
     val itemIds: List<Long> = emptyList(), // serializado via Converters.kt
     val createdAt: Long = System.currentTimeMillis(),
     val hourOfDay: Int = 0,
+    val appMode: String = "CASA",          // AppMode.name — padrão CASA para registros antigos
 )

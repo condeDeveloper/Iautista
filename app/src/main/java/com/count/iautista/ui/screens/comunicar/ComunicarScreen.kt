@@ -53,6 +53,7 @@ fun ComunicarScreen(
                 onSpeak = { viewModel.speakPhrase() },
                 onClear = { viewModel.clearPhrase() },
                 onRemoveItem = { viewModel.removeItemFromPhrase(it) },
+                isSpeaking = state.isSpeaking,
             )
         }
 

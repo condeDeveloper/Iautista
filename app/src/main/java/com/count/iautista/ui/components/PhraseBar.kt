@@ -25,6 +25,7 @@ fun PhraseBar(
     onClear: () -> Unit,
     onRemoveItem: (CommunicationItem) -> Unit,
     modifier: Modifier = Modifier,
+    isSpeaking: Boolean = false,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -103,15 +104,24 @@ fun PhraseBar(
                     }
                     Button(
                         onClick = onSpeak,
+                        enabled = !isSpeaking,
                         colors = ButtonDefaults.buttonColors(containerColor = ColorAccentYellow),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     ) {
-                        Icon(
-                            Icons.Filled.VolumeUp,
-                            contentDescription = "Falar frase",
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                        )
+                        if (isSpeaking) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        } else {
+                            Icon(
+                                Icons.Filled.VolumeUp,
+                                contentDescription = "Falar frase",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Falar", color = MaterialTheme.colorScheme.onSurface)
                     }

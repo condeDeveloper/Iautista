@@ -10,6 +10,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.UUID
@@ -26,6 +29,10 @@ class TtsManager @Inject constructor(
     private val pendingQueue = mutableListOf<String>()
     private var currentPlayer: MediaPlayer? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    private val _isSynthesizing = MutableStateFlow(false)
+    /** True apenas enquanto a API Azure está sendo chamada (sem cache). Cache hits são instantâneos. */
+    val isSynthesizing: StateFlow<Boolean> = _isSynthesizing.asStateFlow()
 
     init {
         tts = TextToSpeech(context) { status ->
@@ -62,12 +69,16 @@ class TtsManager @Inject constructor(
         if (text.isBlank()) return
         if (azureTts.isConfigured) {
             scope.launch {
-                val file = azureTts.synthesize(text)
-                if (file != null) {
-                    playAudioFile(file.absolutePath)
-                } else {
-                    // Falha na API → fallback Android TTS
-                    speakWithAndroid(text)
+                _isSynthesizing.value = true
+                try {
+                    val file = azureTts.synthesize(text)
+                    if (file != null) {
+                        playAudioFile(file.absolutePath)
+                    } else {
+                        speakWithAndroid(text)
+                    }
+                } finally {
+                    _isSynthesizing.value = false
                 }
             }
         } else {

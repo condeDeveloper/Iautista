@@ -30,6 +30,7 @@ data class ComunicarUiState(
     val selectedCategory: CommunicationCategory? = null,
     val phraseItems: List<CommunicationItem> = emptyList(),
     val isLoading: Boolean = false,
+    val isSpeaking: Boolean = false,
     val appMode: AppMode = AppMode.CASA,
 )
 
@@ -78,6 +79,11 @@ class ComunicarViewModel @Inject constructor(
         }
         viewModelScope.launch {
             getFavorites().collect { favs -> _uiState.update { it.copy(favorites = favs) } }
+        }
+        viewModelScope.launch {
+            ttsManager.isSynthesizing.collect { speaking ->
+                _uiState.update { it.copy(isSpeaking = speaking) }
+            }
         }
     }
 

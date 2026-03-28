@@ -15,7 +15,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.count.iautista.domain.model.ButtonSize
 import com.count.iautista.domain.model.CommunicationItem
 import com.count.iautista.ui.theme.ShapeCard
@@ -85,8 +87,12 @@ fun CommunicationItemCard(
             ) {
                 val imageUrl = item.displayImageUri
                 if (imageUrl != null) {
+                    val context = LocalContext.current
                     SubcomposeAsyncImage(
-                        model = imageUrl,
+                        model = ImageRequest.Builder(context)
+                            .data(imageUrl)
+                            .crossfade(300)
+                            .build(),
                         contentDescription = item.text,
                         contentScale = ContentScale.Fit,
                         modifier = Modifier

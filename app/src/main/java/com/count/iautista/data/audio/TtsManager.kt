@@ -7,6 +7,10 @@ import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
@@ -15,24 +19,24 @@ import javax.inject.Singleton
 @Singleton
 class TtsManager @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val azureTts: AzureTtsService,
 ) {
     private var tts: TextToSpeech? = null
-    private var isReady = false
+    private var isAndroidTtsReady = false
     private val pendingQueue = mutableListOf<String>()
     private var currentPlayer: MediaPlayer? = null
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     init {
         tts = TextToSpeech(context) { status ->
-            Log.d(TAG, "TTS onInit status=$status")
             if (status == TextToSpeech.SUCCESS) {
                 configureLanguage()
-                isReady = true
-                // Fala tudo que ficou enfileirado durante a inicialização
+                isAndroidTtsReady = true
                 val pending = pendingQueue.toList()
                 pendingQueue.clear()
-                pending.forEach { doSpeak(it) }
+                pending.forEach { speakWithAndroid(it) }
             } else {
-                Log.e(TAG, "TTS init falhou com status=$status")
+                Log.e(TAG, "Android TTS init falhou: $status")
             }
         }
     }
@@ -41,35 +45,40 @@ class TtsManager @Inject constructor(
         val locales = listOf(Locale("pt", "BR"), Locale("pt"), Locale.getDefault())
         for (locale in locales) {
             val result = tts?.setLanguage(locale)
-            Log.d(TAG, "TTS setLanguage($locale) = $result")
             if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
-                Log.d(TAG, "TTS usando idioma: $locale")
+                Log.d(TAG, "Android TTS usando: $locale")
                 return
             }
         }
-        Log.w(TAG, "TTS: nenhum idioma preferido disponível, usando padrão do engine")
     }
 
     // ── API pública ──────────────────────────────────────────────────────────
 
+    /**
+     * Fala [text]. Usa Azure Neural TTS se configurado (com cache local),
+     * senão cai no Android TTS padrão.
+     */
     fun speak(text: String) {
         if (text.isBlank()) return
-        Log.d(TAG, "speak() isReady=$isReady text='$text'")
-        if (!isReady) {
-            pendingQueue.add(text)
-            return
+        if (azureTts.isConfigured) {
+            scope.launch {
+                val file = azureTts.synthesize(text)
+                if (file != null) {
+                    playAudioFile(file.absolutePath)
+                } else {
+                    // Falha na API → fallback Android TTS
+                    speakWithAndroid(text)
+                }
+            }
+        } else {
+            speakWithAndroid(text)
         }
-        doSpeak(text)
     }
 
-    private fun doSpeak(text: String) {
-        val params = Bundle().apply {
-            putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
-        }
-        val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, UUID.randomUUID().toString())
-        Log.d(TAG, "tts.speak() result=$result")
-    }
-
+    /**
+     * Reproduz áudio gravado pelo responsável se disponível,
+     * senão fala via TTS.
+     */
     fun speakOrPlayAudio(text: String, audioUri: String?) {
         if (!audioUri.isNullOrBlank()) {
             playAudioFile(audioUri)
@@ -91,11 +100,24 @@ class TtsManager @Inject constructor(
         tts?.stop()
         tts?.shutdown()
         tts = null
-        isReady = false
+        isAndroidTtsReady = false
         releasePlayer()
     }
 
-    // ── Áudio customizado ────────────────────────────────────────────────────
+    // ── Android TTS ──────────────────────────────────────────────────────────
+
+    private fun speakWithAndroid(text: String) {
+        if (!isAndroidTtsReady) {
+            pendingQueue.add(text)
+            return
+        }
+        val params = Bundle().apply {
+            putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
+        }
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, UUID.randomUUID().toString())
+    }
+
+    // ── Reprodução de arquivo de áudio ───────────────────────────────────────
 
     private fun playAudioFile(uri: String) {
         releasePlayer()
@@ -112,7 +134,7 @@ class TtsManager @Inject constructor(
                 start()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Erro ao reproduzir áudio: $uri", e)
+            Log.e(TAG, "Erro ao reproduzir: $uri", e)
             currentPlayer = null
         }
     }

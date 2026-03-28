@@ -75,7 +75,7 @@ fun ComunicarScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(suggestions) { (emoji, label) ->
+            items(suggestions, key = { it.second }) { (emoji, label) ->
                 ContextSuggestionChip(
                     emoji = emoji,
                     label = label,
@@ -124,8 +124,8 @@ fun ComunicarScreen(
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
-            val featured = state.categories.filter { it.id in state.featuredCategoryIds }
-            val others   = state.categories.filter { it.id !in state.featuredCategoryIds }
+            val featured = state.featuredCategories
+            val others   = state.otherCategories
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),

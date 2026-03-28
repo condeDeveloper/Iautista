@@ -45,9 +45,8 @@ fun ResponsavelScreen(
     val state by viewModel.uiState.collectAsState()
     var pinInput by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf(false) }
-    var pinUnlocked by remember { mutableStateOf(false) }
 
-    if (!pinUnlocked && state.isPinConfigured) {
+    if (!state.pinUnlocked && state.isPinConfigured) {
         PinLockScreen(
             pinInput = pinInput,
             hasError = pinError,
@@ -56,10 +55,7 @@ fun ResponsavelScreen(
             onValidate = {
                 if (pinInput.length == 4) {
                     viewModel.validatePin(pinInput) { valid ->
-                        if (valid) {
-                            pinUnlocked = true
-                            pinError = false
-                        } else {
+                        if (!valid) {
                             pinError = true
                             pinInput = ""
                         }

@@ -211,10 +211,8 @@ fun RotinaScreen(
             NowCard(
                 item = nowItem,
                 mode = state.appMode,
-                onClick = {
-                    sound.playComplete()
-                    viewModel.markAsDone(nowItem)
-                },
+                onTap = { sound.playComplete() },
+                onClick = { viewModel.markAsDone(nowItem) },
             )
             OutlinedButton(
                 onClick = {
@@ -281,6 +279,7 @@ fun RotinaScreen(
 private fun NowCard(
     item: RoutineItem,
     mode: AppMode,
+    onTap: () -> Unit = {},
     onClick: () -> Unit,
 ) {
     var showCheck by remember { mutableStateOf(false) }
@@ -294,6 +293,7 @@ private fun NowCard(
     ElevatedCard(
         onClick = {
             if (!showCheck) {
+                onTap()
                 showCheck = true
                 scope.launch {
                     delay(480)

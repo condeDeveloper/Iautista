@@ -27,6 +27,8 @@ import com.count.iautista.ui.screens.comunicar.ComunicarScreen
 import com.count.iautista.ui.screens.historico.HistoricoScreen
 import com.count.iautista.ui.screens.inicio.InicioScreen
 import com.count.iautista.ui.screens.onboarding.OnboardingScreen
+import com.count.iautista.ui.screens.onboarding.OnboardingViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.count.iautista.ui.screens.configuracoes.ConfiguracoesScreen
 import com.count.iautista.ui.screens.responsavel.AdicionarItemScreen
 import com.count.iautista.ui.screens.responsavel.GerenciarItensScreen
@@ -76,8 +78,10 @@ fun IautistaNavGraph(
         ) {
             // ── Onboarding ────────────────────────────────────────────────────
             composable(Screen.Onboarding.route) {
+                val onboardingVm: OnboardingViewModel = hiltViewModel()
                 OnboardingScreen(
                     onComplete = {
+                        onboardingVm.completeOnboarding()
                         navController.navigate(Screen.Inicio.route) {
                             popUpTo(Screen.Onboarding.route) { inclusive = true }
                         }

@@ -34,6 +34,7 @@ data class ResponsavelUiState(
     val isPinConfigured: Boolean = false,
     val isLoggedIn: Boolean = false,
     val todayStats: TodayStats = TodayStats(),
+    val pinUnlocked: Boolean = false,
 )
 
 @HiltViewModel
@@ -49,12 +50,15 @@ class ResponsavelViewModel @Inject constructor(
     private val routineRepository: RoutineRepository,
 ) : ViewModel() {
 
+    private val _pinUnlocked = MutableStateFlow(false)
+
     val uiState: StateFlow<ResponsavelUiState> = combine(
         getProfile(),
         getPreferences(),
         getHistory(HistoryFilter.TODAY),
         routineRepository.getAllRoutineItems(),
-    ) { profile, prefs, todayPhrases, routineItems ->
+        _pinUnlocked,
+    ) { profile, prefs, todayPhrases, routineItems, pinUnlocked ->
         val topMode = todayPhrases
             .groupBy { it.appMode }
             .maxByOrNull { it.value.size }
@@ -66,6 +70,7 @@ class ResponsavelViewModel @Inject constructor(
             preferences     = prefs,
             isPinConfigured = prefs.pinConfigured,
             isLoggedIn      = authRepository.isLoggedIn,
+            pinUnlocked     = pinUnlocked,
             todayStats      = TodayStats(
                 totalPhrases     = todayPhrases.size,
                 topMode          = topMode,
@@ -77,9 +82,13 @@ class ResponsavelViewModel @Inject constructor(
 
     fun validatePin(input: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
-            onResult(pinUseCase.validatePin(input))
+            val valid = pinUseCase.validatePin(input)
+            if (valid) _pinUnlocked.value = true
+            onResult(valid)
         }
     }
+
+    fun lockPin() { _pinUnlocked.value = false }
 
     fun savePin(pin: String) {
         viewModelScope.launch { pinUseCase.setPin(pin) }

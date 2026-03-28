@@ -64,9 +64,9 @@ class HistoricoViewModel @Inject constructor(
 
     private fun computeTopPhrases(phrases: List<PhraseHistory>, limit: Int): List<Pair<String, Int>> =
         phrases
-            .groupBy { it.phraseText }
+            .groupBy { it.phraseText.trim() }
             .entries
-            .sortedByDescending { it.value.size }
+            .sortedByDescending { entry -> entry.value.maxOf { it.createdAt } }
             .take(limit)
             .map { it.key to it.value.size }
 

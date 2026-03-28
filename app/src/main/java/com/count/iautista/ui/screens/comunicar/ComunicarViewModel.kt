@@ -23,6 +23,8 @@ import javax.inject.Inject
 data class ComunicarUiState(
     val categories: List<CommunicationCategory> = emptyList(),
     val featuredCategoryIds: Set<Long> = emptySet(),
+    val featuredCategories: List<CommunicationCategory> = emptyList(),
+    val otherCategories: List<CommunicationCategory> = emptyList(),
     val favorites: List<CommunicationItem> = emptyList(),
     val items: List<CommunicationItem> = emptyList(),
     val selectedCategory: CommunicationCategory? = null,
@@ -64,7 +66,13 @@ class ComunicarViewModel @Inject constructor(
                 Triple(sorted, order.take(FEATURED_COUNT).toSet(), mode)
             }.collect { (sorted, featuredIds, mode) ->
                 _uiState.update {
-                    it.copy(categories = sorted, featuredCategoryIds = featuredIds, appMode = mode)
+                    it.copy(
+                        categories = sorted,
+                        featuredCategoryIds = featuredIds,
+                        featuredCategories = sorted.filter { cat -> cat.id in featuredIds },
+                        otherCategories = sorted.filter { cat -> cat.id !in featuredIds },
+                        appMode = mode,
+                    )
                 }
             }
         }

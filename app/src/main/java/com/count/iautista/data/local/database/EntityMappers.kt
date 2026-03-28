@@ -114,6 +114,7 @@ fun ChildProfileEntity.toDomain() = ChildProfile(
     id = id,
     name = name,
     photoUri = photoUri,
+    avatarId = avatarId,
     createdAt = createdAt,
 )
 
@@ -121,5 +122,6 @@ fun ChildProfile.toEntity() = ChildProfileEntity(
     id = id,
     name = name,
     photoUri = photoUri,
+    avatarId = avatarId,
     createdAt = createdAt,
 )

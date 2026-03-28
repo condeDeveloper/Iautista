@@ -42,11 +42,10 @@ class GerenciarPerfisViewModel @Inject constructor(
     val showAddDialog: StateFlow<Boolean>        = _showAddDialog.asStateFlow()
     val editingProfile: StateFlow<ChildProfile?> = _editingProfile.asStateFlow()
 
-    fun addProfile(name: String) {
+    fun addProfile(name: String, avatarId: String? = null) {
         if (name.isBlank()) return
         viewModelScope.launch {
-            val id = repository.saveProfile(ChildProfile(name = name.trim()))
-            // If this is the first profile, set it as active
+            val id = repository.saveProfile(ChildProfile(name = name.trim(), avatarId = avatarId))
             if (uiState.value.profiles.isEmpty()) {
                 repository.setActiveProfileId(id)
             }
@@ -54,10 +53,10 @@ class GerenciarPerfisViewModel @Inject constructor(
         }
     }
 
-    fun updateProfile(profile: ChildProfile, newName: String) {
+    fun updateProfile(profile: ChildProfile, newName: String, avatarId: String? = null) {
         if (newName.isBlank()) return
         viewModelScope.launch {
-            repository.updateProfile(profile.copy(name = newName.trim()))
+            repository.updateProfile(profile.copy(name = newName.trim(), avatarId = avatarId ?: profile.avatarId))
             dismissDialog()
         }
     }

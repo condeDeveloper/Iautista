@@ -1,8 +1,13 @@
 package com.count.iautista.ui.screens.responsavel
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -12,10 +17,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.count.iautista.domain.model.ChildProfile
+import com.count.iautista.domain.model.avatarBgColors
+import com.count.iautista.domain.model.childAvatars
 import com.count.iautista.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,19 +39,21 @@ fun GerenciarPerfisScreen(
 
     if (showAddDialog) {
         ProfileNameDialog(
-            title    = "Novo perfil",
-            initial  = "",
+            title     = "Novo perfil",
+            initial   = "",
+            initialAvatar = null,
             onDismiss = { viewModel.dismissDialog() },
-            onConfirm = { name -> viewModel.addProfile(name) },
+            onConfirm = { name, avatarId -> viewModel.addProfile(name, avatarId) },
         )
     }
 
     editingProfile?.let { profile ->
         ProfileNameDialog(
-            title    = "Editar perfil",
-            initial  = profile.name,
+            title     = "Editar perfil",
+            initial   = profile.name,
+            initialAvatar = profile.avatarId,
             onDismiss = { viewModel.dismissDialog() },
-            onConfirm = { name -> viewModel.updateProfile(profile, name) },
+            onConfirm = { name, avatarId -> viewModel.updateProfile(profile, name, avatarId) },
         )
     }
 
@@ -189,29 +200,12 @@ private fun ProfileCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(ShapeCircle)
-                    .background(
-                        if (isActive)
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
-                        else
-                            MaterialTheme.colorScheme.surfaceVariant,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text  = profile.name.take(1).uppercase(),
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                    ),
-                    color = if (isActive)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            AvatarCircle(
+                avatarId = profile.avatarId,
+                name     = profile.name,
+                size     = 48,
+                isActive = isActive,
+            )
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -267,40 +261,79 @@ private fun ProfileCard(
 private fun ProfileNameDialog(
     title: String,
     initial: String,
+    initialAvatar: String?,
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
+    onConfirm: (String, String?) -> Unit,
 ) {
     var name by remember { mutableStateOf(initial) }
     var nameError by remember { mutableStateOf(false) }
+    var selectedAvatar by remember { mutableStateOf(initialAvatar) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
                 text  = title,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                ),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
             )
         },
         text = {
-            OutlinedTextField(
-                value         = name,
-                onValueChange = { name = it; nameError = false },
-                label         = { Text("Nome") },
-                placeholder   = { Text("Ex: Maria") },
-                isError       = nameError,
-                supportingText = if (nameError) { { Text("Campo obrigatório") } } else null,
-                singleLine    = true,
-                modifier      = Modifier.fillMaxWidth(),
-                shape         = ShapeCard,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value         = name,
+                    onValueChange = { name = it; nameError = false },
+                    label         = { Text("Nome") },
+                    placeholder   = { Text("Ex: Maria") },
+                    isError       = nameError,
+                    supportingText = if (nameError) { { Text("Campo obrigatório") } } else null,
+                    singleLine    = true,
+                    modifier      = Modifier.fillMaxWidth(),
+                    shape         = ShapeCard,
+                )
+
+                Text(
+                    text  = "Avatar",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(8),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    items(childAvatars) { avatar ->
+                        val isSelected = selectedAvatar == avatar.id
+                        val bgColor = Color(avatarBgColors[avatar.colorIndex])
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(ShapeCircle)
+                                .background(bgColor)
+                                .then(
+                                    if (isSelected) Modifier.border(
+                                        2.dp,
+                                        MaterialTheme.colorScheme.primary,
+                                        ShapeCircle,
+                                    ) else Modifier
+                                )
+                                .clickable { selectedAvatar = avatar.id },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(text = avatar.emoji, fontSize = 18.sp)
+                        }
+                    }
+                }
+            }
         },
         confirmButton = {
             Button(
                 onClick = {
                     nameError = name.isBlank()
-                    if (!nameError) onConfirm(name)
+                    if (!nameError) onConfirm(name, selectedAvatar)
                 },
                 shape = ShapeButton,
             ) { Text("Salvar") }
@@ -310,4 +343,41 @@ private fun ProfileNameDialog(
         },
         shape = ShapeCard,
     )
+}
+
+@Composable
+private fun AvatarCircle(
+    avatarId: String?,
+    name: String,
+    size: Int,
+    isActive: Boolean,
+) {
+    val avatar = childAvatars.find { it.id == avatarId }
+    val bgColor = if (avatar != null)
+        Color(avatarBgColors[avatar.colorIndex])
+    else if (isActive)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
+    else
+        MaterialTheme.colorScheme.surfaceVariant
+
+    Box(
+        modifier = Modifier
+            .size(size.dp)
+            .clip(ShapeCircle)
+            .background(bgColor),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (avatar != null) {
+            Text(text = avatar.emoji, fontSize = (size * 0.46f).sp)
+        } else {
+            Text(
+                text  = name.take(1).uppercase(),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = if (isActive)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }

@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -52,8 +53,19 @@ fun IautistaNavGraph(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    val showBottomBar = bottomNavItems.any { item ->
+    // shouldShowBottomBar muda instantaneamente com o destino.
+    // showBottomBar atrasa a exibição para não sobrepor o exit transition da tela anterior.
+    val shouldShowBottomBar = bottomNavItems.any { item ->
         currentDestination?.hierarchy?.any { it.route == item.screen.route } == true
+    }
+    var showBottomBar by remember { mutableStateOf(shouldShowBottomBar) }
+    LaunchedEffect(shouldShowBottomBar) {
+        if (shouldShowBottomBar) {
+            delay(200L) // aguarda exit transition terminar (exitTransition = 180ms)
+            showBottomBar = true
+        } else {
+            showBottomBar = false // some imediatamente ao navegar para sub-tela
+        }
     }
 
     androidx.compose.runtime.CompositionLocalProvider(LocalSoundManager provides soundManager) {

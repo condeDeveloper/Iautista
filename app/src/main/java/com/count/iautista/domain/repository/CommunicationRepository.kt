@@ -17,6 +17,8 @@ interface CommunicationRepository {
     /** limit sem default — evita problema de parâmetro default em Room */
     fun getMostUsedItems(limit: Int): Flow<List<CommunicationItem>>
 
+    fun getItemsByTexts(texts: List<String>): Flow<List<CommunicationItem>>
+
     // ── Escrita ──────────────────────────────────────────────────────────────
 
     suspend fun saveItem(item: CommunicationItem): Long

@@ -51,4 +51,12 @@ interface CommunicationItemDao {
     /** Snapshot único de todos os itens (default + custom) com favorites — usado para sync de favoritos */
     @Query("SELECT * FROM communication_items WHERE isFavorite = 1")
     suspend fun getAllFavoritesOnce(): List<CommunicationItemEntity>
+
+    /** Retorna itens cujo texto está na lista — para seções com itens fixos (ex: Necessidades). */
+    @Query("SELECT * FROM communication_items WHERE text IN (:texts)")
+    fun getItemsByTexts(texts: List<String>): Flow<List<CommunicationItemEntity>>
+
+    /** Atualiza imageUri apenas se ainda for nula — idempotente, usado para patching de seed. */
+    @Query("UPDATE communication_items SET imageUri = :imageUri WHERE text = :text AND categoryId = :categoryId AND (imageUri IS NULL OR imageUri = '')")
+    suspend fun updateImageUriIfNull(text: String, categoryId: Long, imageUri: String)
 }

@@ -176,17 +176,34 @@ fun InicioScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                universalNeeds.forEach { (emoji, label) ->
-                    NeedChip(
-                        emoji = emoji,
-                        label = label,
-                        isLoading = state.loadingLabel == label,
-                        isPlaying = state.playingLabel == label,
-                        onClick = {
-                            sound.playTap()
-                            viewModel.speakPhrase(label)
-                        },
-                    )
+                if (state.universalNeedItems.isNotEmpty()) {
+                    // Items do banco — pictograma ARASAAC consistente com o resto do app
+                    state.universalNeedItems.forEach { item ->
+                        CommunicationItemCard(
+                            item = item,
+                            onClick = {
+                                sound.playTap()
+                                viewModel.speakItem(item)
+                            },
+                            buttonSize = ButtonSize.SMALL,
+                            isLoading = state.loadingLabel == item.text,
+                            isPlaying = state.playingLabel == item.text,
+                        )
+                    }
+                } else {
+                    // Fallback estático enquanto o banco carrega (~<1s)
+                    universalNeeds.forEach { (emoji, label) ->
+                        NeedChip(
+                            emoji = emoji,
+                            label = label,
+                            isLoading = state.loadingLabel == label,
+                            isPlaying = state.playingLabel == label,
+                            onClick = {
+                                sound.playTap()
+                                viewModel.speakPhrase(label)
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -208,15 +225,15 @@ fun InicioScreen(
                 // Fallback para lista estática enquanto o banco carrega.
                 if (state.emotionItems.isNotEmpty()) {
                     state.emotionItems.forEach { item ->
-                        EmotionCard(
-                            emoji = item.emoji,
-                            label = item.text,
-                            isLoading = state.loadingLabel == item.text,
-                            isPlaying = state.playingLabel == item.text,
+                        CommunicationItemCard(
+                            item = item,
                             onClick = {
                                 sound.playTap()
                                 viewModel.speakItem(item)
                             },
+                            buttonSize = ButtonSize.SMALL,
+                            isLoading = state.loadingLabel == item.text,
+                            isPlaying = state.playingLabel == item.text,
                         )
                     }
                 } else {

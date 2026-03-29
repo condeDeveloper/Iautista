@@ -12,6 +12,7 @@ import com.count.iautista.domain.model.SuggestionSource
 import com.count.iautista.domain.model.PhraseHistory
 import com.count.iautista.domain.model.RoutineItem
 import com.count.iautista.domain.usecase.comunicar.GetItemsByCategoryUseCase
+import com.count.iautista.domain.usecase.comunicar.GetItemsByTextsUseCase
 import com.count.iautista.domain.usecase.comunicar.TrackItemUsageUseCase
 import com.count.iautista.domain.usecase.context.GetContextSnapshotUseCase
 import com.count.iautista.domain.usecase.context.GetContextualSuggestionsUseCase
@@ -25,6 +26,9 @@ import javax.inject.Inject
 // ID fixo da categoria "Sentimentos" no seed do banco
 private const val CATEGORY_SENTIMENTOS = 2L
 
+// Textos das necessidades universais — ordem fixa preservada ao mapear do banco
+private val UNIVERSAL_NEED_TEXTS = listOf("Banheiro", "Água", "Dói", "Ajuda", "Cansado")
+
 data class InicioUiState(
     val profile: ChildProfile? = null,
     val greeting: String = "Olá!",
@@ -36,6 +40,8 @@ data class InicioUiState(
     val contextSuggestions: List<ContextSuggestion> = emptyList(),
     /** Items do banco usados na seção "Como estou" — permite trackUsage correto. */
     val emotionItems: List<CommunicationItem> = emptyList(),
+    /** Items do banco para "Necessidades" — mesma imagem ARASAAC em todo o app. */
+    val universalNeedItems: List<CommunicationItem> = emptyList(),
     /** Label do item sendo baixado/sintetizado — exibe spinner. */
     val loadingLabel: String? = null,
     /** Label do item sendo reproduzido — exibe ícone de som. */
@@ -48,6 +54,7 @@ private data class TtsAndEmotionState(
     val synthesizing: Boolean,
     val playing: Boolean,
     val emotions: List<CommunicationItem>,
+    val needs: List<CommunicationItem>,
 )
 
 @HiltViewModel
@@ -60,6 +67,7 @@ class InicioViewModel @Inject constructor(
     private val getContextSnapshot: GetContextSnapshotUseCase,
     private val getContextualSuggestions: GetContextualSuggestionsUseCase,
     private val getItemsByCategory: GetItemsByCategoryUseCase,
+    private val getItemsByTexts: GetItemsByTextsUseCase,
 ) : ViewModel() {
 
     /** Label do item ativo — limpo quando síntese e reprodução terminam. */
@@ -130,8 +138,11 @@ class InicioViewModel @Inject constructor(
             ttsManager.isSynthesizing,
             ttsManager.isPlaying,
             getItemsByCategory(CATEGORY_SENTIMENTOS),
-        ) { label, synthesizing, playing, emotions ->
-            TtsAndEmotionState(label, synthesizing, playing, emotions)
+            getItemsByTexts(UNIVERSAL_NEED_TEXTS),
+        ) { label, synthesizing, playing, emotions, rawNeeds ->
+            // Preserva a ordem estática de UNIVERSAL_NEED_TEXTS
+            val needs = UNIVERSAL_NEED_TEXTS.mapNotNull { text -> rawNeeds.find { it.text == text } }
+            TtsAndEmotionState(label, synthesizing, playing, emotions, needs)
         },
     ) { data, snapshot, stableRecent, stableMostUsed, ttsState ->
         InicioUiState(
@@ -144,6 +155,7 @@ class InicioViewModel @Inject constructor(
             appMode            = snapshot.mode,
             contextSuggestions = getContextualSuggestions(snapshot),
             emotionItems       = ttsState.emotions,
+            universalNeedItems = ttsState.needs,
             loadingLabel       = if (ttsState.synthesizing) ttsState.label else null,
             playingLabel       = if (ttsState.playing && !ttsState.synthesizing) ttsState.label else null,
         )

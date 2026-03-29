@@ -15,10 +15,20 @@ class DatabaseSeeder @Inject constructor(
     private val itemDao: CommunicationItemDao,
     private val routineDao: RoutineItemDao,
 ) {
-    /** Idempotente — só insere se o banco estiver vazio */
+    /** Idempotente — só insere se o banco estiver vazio; também aplica patches de imagens. */
     suspend fun seedIfEmpty() {
         if (categoryDao.count() == 0) seedCategories()
         if (routineDao.count() == 0) seedRoutine()
+        patchMissingImageUris()
+    }
+
+    /**
+     * Corrige itens que foram seedados sem ARASAAC ID mas agora têm um.
+     * Idempotente: só atualiza registros onde imageUri ainda é null.
+     */
+    private suspend fun patchMissingImageUris() {
+        // Sentimentos (cat 2)
+        itemDao.updateImageUriIfNull("Bravo", 2L, arasaac(35533))
     }
 
     // ── Categorias + Itens ───────────────────────────────────────────────────
@@ -47,7 +57,7 @@ class DatabaseSeeder @Inject constructor(
 
             // 2 · Sentimentos
             add(item(2, "Feliz",     "😊", 0, arasaac(9907)));  add(item(2, "Triste",   "😢", 1, arasaac(35545)))
-            add(item(2, "Bravo",     "😠", 2));                  add(item(2, "Assustado","😨", 3, arasaac(35535)))
+            add(item(2, "Bravo",     "😠", 2, arasaac(35533))); add(item(2, "Assustado","😨", 3, arasaac(35535)))
             add(item(2, "Cansado",   "😴", 4, arasaac(35537))); add(item(2, "Ansioso",  "😟", 5, arasaac(30484)))
             add(item(2, "Calmo",     "😌", 6, arasaac(31310))); add(item(2, "Carinho",  "🥰", 7, arasaac(8020)))
 

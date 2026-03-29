@@ -63,4 +63,8 @@ interface CommunicationItemDao {
     /** Atualiza imageUri incondicionalmente — usado para corrigir IDs errados de seeds anteriores. */
     @Query("UPDATE communication_items SET imageUri = :imageUri WHERE text = :text AND categoryId = :categoryId")
     suspend fun forceUpdateImageUri(text: String, categoryId: Long, imageUri: String)
+
+    /** Substitui sufixo de URL em todos os itens default — migra _500.png → _300.png. */
+    @Query("UPDATE communication_items SET imageUri = REPLACE(imageUri, :oldSuffix, :newSuffix) WHERE isDefault = 1 AND imageUri LIKE '%' || :oldSuffix")
+    suspend fun replaceImageUriSuffix(oldSuffix: String, newSuffix: String)
 }

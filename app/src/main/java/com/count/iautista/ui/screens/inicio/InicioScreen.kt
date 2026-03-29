@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil.compose.SubcomposeAsyncImage
+import coil.compose.AsyncImage
 import com.count.iautista.domain.model.AppMode
 import com.count.iautista.domain.model.ButtonSize
 import com.count.iautista.domain.model.RoutineItem
@@ -534,14 +534,16 @@ private fun QuickCard(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp),
                     )
-                    imageUri != null -> SubcomposeAsyncImage(
-                        model = imageUri,
-                        contentDescription = label,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.size(36.dp),
-                        loading = { /* silencioso — emoji já foi mostrado antes */ },
-                        error = { Text(text = emoji, fontSize = 22.sp) },
-                    )
+                    imageUri != null -> {
+                        // Emoji como camada base — AsyncImage faz crossfade por cima
+                        Text(text = emoji, fontSize = 22.sp)
+                        AsyncImage(
+                            model = imageUri,
+                            contentDescription = label,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(36.dp),
+                        )
+                    }
                     else -> Text(text = emoji, fontSize = 22.sp)
                 }
             }

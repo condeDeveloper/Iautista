@@ -20,6 +20,7 @@ class DatabaseSeeder @Inject constructor(
         if (categoryDao.count() == 0) seedCategories()
         if (routineDao.count() == 0) seedRoutine()
         patchMissingImageUris()
+        patchImageUriSize()
     }
 
     /**
@@ -29,6 +30,14 @@ class DatabaseSeeder @Inject constructor(
     private suspend fun patchMissingImageUris() {
         // Sentimentos (cat 2)
         itemDao.updateImageUriIfNull("Bravo", 2L, arasaac(35533))
+    }
+
+    /**
+     * Migra URLs de _500.png → _300.png em todos os itens default.
+     * Idempotente: REPLACE em string que não contém _500.png é no-op.
+     */
+    private suspend fun patchImageUriSize() {
+        itemDao.replaceImageUriSuffix("_500.png", "_300.png")
     }
 
     // ── Categorias + Itens ───────────────────────────────────────────────────
@@ -130,7 +139,7 @@ class DatabaseSeeder @Inject constructor(
             backgroundColor = bg, order = order, isDefault = true)
 
     private fun arasaac(id: Int): String =
-        "https://static.arasaac.org/pictograms/$id/${id}_500.png"
+        "https://static.arasaac.org/pictograms/$id/${id}_300.png"
 
     private fun item(categoryId: Long, text: String, emoji: String, order: Int, imageUri: String? = null) =
         CommunicationItemEntity(

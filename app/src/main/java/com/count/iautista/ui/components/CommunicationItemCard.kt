@@ -19,7 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
-import coil.compose.SubcomposeAsyncImage
+import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.count.iautista.domain.model.ButtonSize
 import com.count.iautista.domain.model.CommunicationItem
@@ -105,10 +105,17 @@ fun CommunicationItemCard(
                         modifier = Modifier.size(emojiContainerSize * 0.55f),
                     )
                     else -> {
+                        // Emoji sempre visível como camada base — fallback natural
+                        // se a imagem falhar ou ainda não tiver carregado.
+                        Text(
+                            text = item.emoji.ifBlank { "📌" },
+                            fontSize = emojiFontSize,
+                            textAlign = TextAlign.Center,
+                        )
                         val imageUrl = item.displayImageUri
                         if (imageUrl != null) {
                             val context = LocalContext.current
-                            SubcomposeAsyncImage(
+                            AsyncImage(
                                 model = ImageRequest.Builder(context)
                                     .data(imageUrl)
                                     .crossfade(300)
@@ -118,30 +125,6 @@ fun CommunicationItemCard(
                                 modifier = Modifier
                                     .size(emojiContainerSize)
                                     .clip(ShapeEmojiContainer),
-                                loading = {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(emojiContainerSize * 0.45f),
-                                            strokeWidth = 1.5.dp,
-                                        )
-                                    }
-                                },
-                                error = {
-                                    Text(
-                                        text = item.emoji.ifBlank { "📌" },
-                                        fontSize = emojiFontSize,
-                                        textAlign = TextAlign.Center,
-                                    )
-                                },
-                            )
-                        } else {
-                            Text(
-                                text = item.emoji.ifBlank { "📌" },
-                                fontSize = emojiFontSize,
-                                textAlign = TextAlign.Center,
                             )
                         }
                     }

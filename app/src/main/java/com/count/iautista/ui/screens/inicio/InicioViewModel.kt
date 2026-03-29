@@ -11,6 +11,7 @@ import com.count.iautista.domain.model.ContextSuggestion
 import com.count.iautista.domain.model.SuggestionSource
 import com.count.iautista.domain.model.PhraseHistory
 import com.count.iautista.domain.model.RoutineItem
+import com.count.iautista.domain.usecase.comunicar.GetItemsByCategoryUseCase
 import com.count.iautista.domain.usecase.comunicar.TrackItemUsageUseCase
 import com.count.iautista.domain.usecase.context.GetContextSnapshotUseCase
 import com.count.iautista.domain.usecase.context.GetContextualSuggestionsUseCase
@@ -21,6 +22,9 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// ID fixo da categoria "Sentimentos" no seed do banco
+private const val CATEGORY_SENTIMENTOS = 2L
+
 data class InicioUiState(
     val profile: ChildProfile? = null,
     val greeting: String = "Olá!",
@@ -30,6 +34,8 @@ data class InicioUiState(
     val routineNext: List<RoutineItem> = emptyList(),
     val appMode: AppMode = AppMode.CASA,
     val contextSuggestions: List<ContextSuggestion> = emptyList(),
+    /** Items do banco usados na seção "Como estou" — permite trackUsage correto. */
+    val emotionItems: List<CommunicationItem> = emptyList(),
     /** Label da frase sendo sintetizada pelo TTS (null = nenhuma). */
     val speakingLabel: String? = null,
 )
@@ -43,24 +49,25 @@ class InicioViewModel @Inject constructor(
     private val prefsDataStore: UserPreferencesDataStore,
     private val getContextSnapshot: GetContextSnapshotUseCase,
     private val getContextualSuggestions: GetContextualSuggestionsUseCase,
+    private val getItemsByCategory: GetItemsByCategoryUseCase,
 ) : ViewModel() {
 
-    // Label da frase atualmente em síntese — limpo quando isSynthesizing volta a false.
     private val _speakingLabel = MutableStateFlow<String?>(null)
 
     // recentPhrases estabilizado: só adiciona ao front quando há frase genuinamente nova.
-    // Evita reordenação ao clicar em "falar novamente".
     private val _stableRecentPhrases = MutableStateFlow<List<PhraseHistory>>(emptyList())
 
+    // mostUsedItems estabilizado: não reordena quando item já presente é clicado.
+    // Só adiciona ao front quando um item genuinamente novo entra no top-8.
+    private val _stableMostUsed = MutableStateFlow<List<CommunicationItem>>(emptyList())
+
     init {
-        // Sincroniza _speakingLabel com o estado de síntese do TTS.
         viewModelScope.launch {
             ttsManager.isSynthesizing.collect { synthesizing ->
                 if (!synthesizing) _speakingLabel.value = null
             }
         }
 
-        // Mantém _stableRecentPhrases atualizado sem reordenar itens já exibidos.
         viewModelScope.launch {
             getHomeData()
                 .map { it.recentPhrases.distinctBy { p -> p.phraseText } }
@@ -77,29 +84,51 @@ class InicioViewModel @Inject constructor(
                             .distinctBy { it.phraseText }
                             .take(6)
                     }
-                    // Sem frases novas → mantém ordem atual (evita reordenação ao clicar)
+                }
+        }
+
+        viewModelScope.launch {
+            getHomeData()
+                .map { it.mostUsedItems }
+                .collect { incoming ->
+                    val current = _stableMostUsed.value
+                    if (current.isEmpty()) {
+                        _stableMostUsed.value = incoming
+                        return@collect
+                    }
+                    val currentIds = current.map { it.id }.toSet()
+                    val newItems = incoming.filter { it.id !in currentIds }
+                    if (newItems.isNotEmpty()) {
+                        // Novo item entrou no top-8: coloca na frente, mantém o resto na ordem atual
+                        _stableMostUsed.value = (newItems + current)
+                            .distinctBy { it.id }
+                            .take(8)
+                    }
+                    // Sem item novo → mantém ordem atual, não reordena por contagem
                 }
         }
     }
 
     val uiState: StateFlow<InicioUiState> = combine(
         getHomeData(),
-        // distinctUntilChangedBy { mode }: sugestões só reordenam quando o modo muda,
-        // não a cada frase falada — evita a dança de itens ao clicar.
         getContextSnapshot().distinctUntilChangedBy { it.mode },
         _stableRecentPhrases,
-        _speakingLabel,
-    ) { data, snapshot, stableRecent, speakingLabel ->
+        _stableMostUsed,
+        combine(_speakingLabel, getItemsByCategory(CATEGORY_SENTIMENTOS)) { label, emotions ->
+            label to emotions
+        },
+    ) { data, snapshot, stableRecent, stableMostUsed, (speakingLabel, emotionItems) ->
         InicioUiState(
-            profile             = data.profile,
-            greeting            = data.greeting,
-            recentPhrases       = stableRecent,
-            mostUsedItems       = data.mostUsedItems,
-            routineNow          = data.routineNow,
-            routineNext         = data.routineNext,
-            appMode             = snapshot.mode,
-            contextSuggestions  = getContextualSuggestions(snapshot),
-            speakingLabel       = speakingLabel,
+            profile            = data.profile,
+            greeting           = data.greeting,
+            recentPhrases      = stableRecent,
+            mostUsedItems      = stableMostUsed,
+            routineNow         = data.routineNow,
+            routineNext        = data.routineNext,
+            appMode            = snapshot.mode,
+            contextSuggestions = getContextualSuggestions(snapshot),
+            emotionItems       = emotionItems,
+            speakingLabel      = speakingLabel,
         )
     }.stateIn(
         scope = viewModelScope,

@@ -58,7 +58,8 @@ private val universalNeeds = listOf(
     "😴" to "Cansado",
 )
 
-private val emotions = listOf(
+// Fallback estático caso o banco ainda não tenha carregado
+private val emotionsFallback = listOf(
     "😊" to "Feliz",
     "😢" to "Triste",
     "😠" to "Bravo",
@@ -199,16 +200,33 @@ fun InicioScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                emotions.forEach { (emoji, label) ->
-                    EmotionCard(
-                        emoji = emoji,
-                        label = label,
-                        isSpeaking = state.speakingLabel == label,
-                        onClick = {
-                            sound.playTap()
-                            viewModel.speakPhrase(label)
-                        },
-                    )
+                // Usa itens do banco (categoria Sentimentos) quando disponíveis —
+                // permite trackUsage correto e entrada em "Mais usadas".
+                // Fallback para lista estática enquanto o banco carrega.
+                if (state.emotionItems.isNotEmpty()) {
+                    state.emotionItems.forEach { item ->
+                        EmotionCard(
+                            emoji = item.emoji,
+                            label = item.text,
+                            isSpeaking = state.speakingLabel == item.text,
+                            onClick = {
+                                sound.playTap()
+                                viewModel.speakItem(item)
+                            },
+                        )
+                    }
+                } else {
+                    emotionsFallback.forEach { (emoji, label) ->
+                        EmotionCard(
+                            emoji = emoji,
+                            label = label,
+                            isSpeaking = state.speakingLabel == label,
+                            onClick = {
+                                sound.playTap()
+                                viewModel.speakPhrase(label)
+                            },
+                        )
+                    }
                 }
             }
         }

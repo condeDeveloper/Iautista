@@ -29,8 +29,9 @@ data class InicioUiState(
     val routineNow: List<RoutineItem> = emptyList(),
     val routineNext: List<RoutineItem> = emptyList(),
     val appMode: AppMode = AppMode.CASA,
-    /** Sugestões contextuais prontas para exibição na seção "Para agora". */
     val contextSuggestions: List<ContextSuggestion> = emptyList(),
+    /** Label da frase sendo sintetizada pelo TTS (null = nenhuma). */
+    val speakingLabel: String? = null,
 )
 
 @HiltViewModel
@@ -44,25 +45,65 @@ class InicioViewModel @Inject constructor(
     private val getContextualSuggestions: GetContextualSuggestionsUseCase,
 ) : ViewModel() {
 
+    // Label da frase atualmente em síntese — limpo quando isSynthesizing volta a false.
+    private val _speakingLabel = MutableStateFlow<String?>(null)
+
+    // recentPhrases estabilizado: só adiciona ao front quando há frase genuinamente nova.
+    // Evita reordenação ao clicar em "falar novamente".
+    private val _stableRecentPhrases = MutableStateFlow<List<PhraseHistory>>(emptyList())
+
+    init {
+        // Sincroniza _speakingLabel com o estado de síntese do TTS.
+        viewModelScope.launch {
+            ttsManager.isSynthesizing.collect { synthesizing ->
+                if (!synthesizing) _speakingLabel.value = null
+            }
+        }
+
+        // Mantém _stableRecentPhrases atualizado sem reordenar itens já exibidos.
+        viewModelScope.launch {
+            getHomeData()
+                .map { it.recentPhrases.distinctBy { p -> p.phraseText } }
+                .collect { incoming ->
+                    val current = _stableRecentPhrases.value
+                    if (current.isEmpty()) {
+                        _stableRecentPhrases.value = incoming.take(6)
+                        return@collect
+                    }
+                    val currentTexts = current.map { it.phraseText }.toSet()
+                    val newItems = incoming.filter { it.phraseText !in currentTexts }
+                    if (newItems.isNotEmpty()) {
+                        _stableRecentPhrases.value = (newItems + current)
+                            .distinctBy { it.phraseText }
+                            .take(6)
+                    }
+                    // Sem frases novas → mantém ordem atual (evita reordenação ao clicar)
+                }
+        }
+    }
+
     val uiState: StateFlow<InicioUiState> = combine(
         getHomeData(),
-        getContextSnapshot(),
-    ) { data, snapshot ->
+        // distinctUntilChangedBy { mode }: sugestões só reordenam quando o modo muda,
+        // não a cada frase falada — evita a dança de itens ao clicar.
+        getContextSnapshot().distinctUntilChangedBy { it.mode },
+        _stableRecentPhrases,
+        _speakingLabel,
+    ) { data, snapshot, stableRecent, speakingLabel ->
         InicioUiState(
             profile             = data.profile,
             greeting            = data.greeting,
-            recentPhrases       = data.recentPhrases,
+            recentPhrases       = stableRecent,
             mostUsedItems       = data.mostUsedItems,
             routineNow          = data.routineNow,
             routineNext         = data.routineNext,
             appMode             = snapshot.mode,
             contextSuggestions  = getContextualSuggestions(snapshot),
+            speakingLabel       = speakingLabel,
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        // Estado inicial com itens padrão do modo CASA — evita flash de seção vazia
-        // antes do primeiro emit do GetContextSnapshotUseCase.
         initialValue = InicioUiState(
             contextSuggestions = AppMode.CASA.items.map { (emoji, label) ->
                 ContextSuggestion(emoji, label, SuggestionSource.MODE_DEFAULT)
@@ -75,11 +116,13 @@ class InicioViewModel @Inject constructor(
     }
 
     fun speakPhrase(text: String) {
+        _speakingLabel.value = text
         ttsManager.speak(text)
         viewModelScope.launch { saveQuickPhrase(text, uiState.value.appMode) }
     }
 
     fun speakItem(item: CommunicationItem) {
+        _speakingLabel.value = item.text
         ttsManager.speakOrPlayAudio(item.text, item.audioUri)
         viewModelScope.launch { trackUsage(item) }
     }

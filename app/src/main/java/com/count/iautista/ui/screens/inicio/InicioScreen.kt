@@ -3,8 +3,8 @@ package com.count.iautista.ui.screens.inicio
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Favorite
@@ -140,14 +140,16 @@ fun InicioScreen(
             SectionHeader(title = "Para agora · ${state.appMode.label}")
         }
         item {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
+            FlowRow(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(state.contextSuggestions) { suggestion ->
+                state.contextSuggestions.forEach { suggestion ->
                     QuickCard(
                         emoji = suggestion.emoji,
                         label = suggestion.label,
+                        isSpeaking = state.speakingLabel == suggestion.label,
                         onClick = {
                             sound.playTap()
                             viewModel.speakPhrase(suggestion.label)
@@ -163,11 +165,12 @@ fun InicioScreen(
             SectionHeader(title = "Necessidades")
         }
         item {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
+            FlowRow(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(universalNeeds) { (emoji, label) ->
+                universalNeeds.forEach { (emoji, label) ->
                     NeedChip(
                         emoji = emoji,
                         label = label,
@@ -185,14 +188,16 @@ fun InicioScreen(
             SectionHeader(title = "Como estou", leadingIcon = Icons.Filled.Mood)
         }
         item {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
+            FlowRow(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(emotions) { (emoji, label) ->
+                emotions.forEach { (emoji, label) ->
                     EmotionCard(
                         emoji = emoji,
                         label = label,
+                        isSpeaking = state.speakingLabel == label,
                         onClick = {
                             sound.playTap()
                             viewModel.speakPhrase(label)
@@ -208,11 +213,12 @@ fun InicioScreen(
                 SectionHeader(title = "Falar novamente", leadingIcon = Icons.Filled.History)
             }
             item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
+                FlowRow(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(state.recentPhrases.take(6)) { phrase ->
+                    state.recentPhrases.take(6).forEach { phrase ->
                         ElevatedCard(
                             onClick = {
                                 sound.playTap()
@@ -253,11 +259,12 @@ fun InicioScreen(
                 SectionHeader(title = "Mais usadas", leadingIcon = Icons.Filled.Favorite)
             }
             item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
+                FlowRow(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(state.mostUsedItems) { item ->
+                    state.mostUsedItems.forEach { item ->
                         CommunicationItemCard(
                             item = item,
                             onClick = {
@@ -434,6 +441,7 @@ private fun QuickCard(
     emoji: String,
     label: String,
     onClick: () -> Unit,
+    isSpeaking: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     ElevatedCard(
@@ -457,7 +465,17 @@ private fun QuickCard(
                     .clip(ShapeEmojiContainer)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
-            ) { Text(text = emoji, fontSize = 22.sp) }
+            ) {
+                if (isSpeaking) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                } else {
+                    Text(text = emoji, fontSize = 22.sp)
+                }
+            }
             Spacer(Modifier.height(8.dp))
             Text(
                 text = label,
@@ -503,7 +521,7 @@ private fun NeedChip(
 }
 
 @Composable
-private fun EmotionCard(emoji: String, label: String, onClick: () -> Unit) {
+private fun EmotionCard(emoji: String, label: String, isSpeaking: Boolean = false, onClick: () -> Unit) {
     ElevatedCard(
         onClick = onClick,
         modifier = Modifier.size(92.dp),
@@ -523,7 +541,17 @@ private fun EmotionCard(emoji: String, label: String, onClick: () -> Unit) {
                     .clip(ShapeEmojiContainer)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
-            ) { Text(text = emoji, fontSize = 26.sp) }
+            ) {
+                if (isSpeaking) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(26.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                } else {
+                    Text(text = emoji, fontSize = 26.sp)
+                }
+            }
             Spacer(Modifier.height(5.dp))
             Text(
                 text = label,

@@ -1,5 +1,6 @@
 package com.count.iautista.ui.screens.responsavel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.count.iautista.data.auth.AuthRepository
@@ -39,6 +40,7 @@ data class ResponsavelUiState(
 
 @HiltViewModel
 class ResponsavelViewModel @Inject constructor(
+    private val savedStateHandle: SavedStateHandle,
     private val getProfile: GetChildProfileUseCase,
     private val saveProfileUseCase: SaveChildProfileUseCase,
     private val getPreferences: GetUserPreferencesUseCase,
@@ -50,7 +52,9 @@ class ResponsavelViewModel @Inject constructor(
     private val routineRepository: RoutineRepository,
 ) : ViewModel() {
 
-    private val _pinUnlocked = MutableStateFlow(false)
+    // SavedStateHandle garante que o PIN continua desbloqueado ao navegar entre
+    // sub-telas do responsável e ao alternar abas pelo bottom bar.
+    private val _pinUnlocked = savedStateHandle.getStateFlow("pin_unlocked", false)
 
     val uiState: StateFlow<ResponsavelUiState> = combine(
         getProfile(),
@@ -83,12 +87,12 @@ class ResponsavelViewModel @Inject constructor(
     fun validatePin(input: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             val valid = pinUseCase.validatePin(input)
-            if (valid) _pinUnlocked.value = true
+            if (valid) savedStateHandle["pin_unlocked"] = true
             onResult(valid)
         }
     }
 
-    fun lockPin() { _pinUnlocked.value = false }
+    fun lockPin() { savedStateHandle["pin_unlocked"] = false }
 
     fun savePin(pin: String) {
         viewModelScope.launch { pinUseCase.setPin(pin) }

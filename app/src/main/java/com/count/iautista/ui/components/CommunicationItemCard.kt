@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -99,11 +100,16 @@ fun CommunicationItemCard(
                             .size(emojiContainerSize)
                             .clip(ShapeEmojiContainer),
                         loading = {
-                            Text(
-                                text = item.emoji.ifBlank { "📌" },
-                                fontSize = emojiFontSize,
-                                textAlign = TextAlign.Center,
-                            )
+                            // Placeholder neutro — evita flash do ícone antigo durante carregamento
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(emojiContainerSize * 0.45f),
+                                    strokeWidth = 1.5.dp,
+                                )
+                            }
                         },
                         error = {
                             Text(

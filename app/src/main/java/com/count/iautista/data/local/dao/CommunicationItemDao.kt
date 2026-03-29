@@ -59,4 +59,8 @@ interface CommunicationItemDao {
     /** Atualiza imageUri apenas se ainda for nula — idempotente, usado para patching de seed. */
     @Query("UPDATE communication_items SET imageUri = :imageUri WHERE text = :text AND categoryId = :categoryId AND (imageUri IS NULL OR imageUri = '')")
     suspend fun updateImageUriIfNull(text: String, categoryId: Long, imageUri: String)
+
+    /** Atualiza imageUri incondicionalmente — usado para corrigir IDs errados de seeds anteriores. */
+    @Query("UPDATE communication_items SET imageUri = :imageUri WHERE text = :text AND categoryId = :categoryId")
+    suspend fun forceUpdateImageUri(text: String, categoryId: Long, imageUri: String)
 }

@@ -18,12 +18,15 @@ enum class SuggestionSource {
 /**
  * Uma sugestão de comunicação contextual pronta para exibição.
  *
- * @param emoji  Emoji representativo (pode ser "" quando a origem é histórico sem mapeamento).
- * @param label  Texto a ser falado.
- * @param source Origem da sugestão — para rastreabilidade e estilo visual.
+ * @param emoji    Emoji representativo — fallback quando [imageUri] é nulo.
+ * @param label    Texto a ser falado.
+ * @param source   Origem da sugestão — para rastreabilidade e estilo visual.
+ * @param imageUri URI da imagem ARASAAC (ou foto customizada) do item correspondente no banco.
+ *                 Quando presente, a UI deve exibir a imagem em vez do [emoji].
  */
 data class ContextSuggestion(
     val emoji: String,
     val label: String,
     val source: SuggestionSource,
+    val imageUri: String? = null,
 )

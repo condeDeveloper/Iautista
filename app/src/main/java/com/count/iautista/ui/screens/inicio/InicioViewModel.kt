@@ -8,6 +8,7 @@ import com.count.iautista.domain.model.AppMode
 import com.count.iautista.domain.model.ChildProfile
 import com.count.iautista.domain.model.CommunicationItem
 import com.count.iautista.domain.model.ContextSuggestion
+import com.count.iautista.domain.model.HomeData
 import com.count.iautista.domain.model.SuggestionSource
 import com.count.iautista.domain.model.PhraseHistory
 import com.count.iautista.domain.model.RoutineItem
@@ -21,6 +22,7 @@ import com.count.iautista.domain.usecase.inicio.GetHomeDataUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.Locale
 import javax.inject.Inject
 
 // ID fixo da categoria "Sentimentos" no seed do banco
@@ -48,7 +50,7 @@ data class InicioUiState(
     val playingLabel: String? = null,
 )
 
-/** Estado interno combinado de TTS + emoções para o combine aninhado. */
+/** Estado interno combinado de TTS + emoções + necessidades para o combine aninhado. */
 private data class TtsAndEmotionState(
     val label: String?,
     val synthesizing: Boolean,
@@ -80,6 +82,14 @@ class InicioViewModel @Inject constructor(
     // Só adiciona ao front quando um item genuinamente novo entra no top-8.
     private val _stableMostUsed = MutableStateFlow<List<CommunicationItem>>(emptyList())
 
+    // Flow compartilhado — substitui as 3 chamadas independentes a getHomeData(),
+    // reduzindo de 12 para 4 queries de DB ativas simultaneamente.
+    private val homeData: StateFlow<HomeData> = getHomeData().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = HomeData(),
+    )
+
     init {
         // Limpa o label ativo quando ambas as fases (síntese + reprodução) terminam
         viewModelScope.launch {
@@ -88,7 +98,7 @@ class InicioViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            getHomeData()
+            homeData
                 .map { it.recentPhrases.distinctBy { p -> p.phraseText } }
                 .collect { incoming ->
                     val current = _stableRecentPhrases.value
@@ -107,7 +117,7 @@ class InicioViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            getHomeData()
+            homeData
                 .map { it.mostUsedItems }
                 .collect { incoming ->
                     val current = _stableMostUsed.value
@@ -118,18 +128,16 @@ class InicioViewModel @Inject constructor(
                     val currentIds = current.map { it.id }.toSet()
                     val newItems = incoming.filter { it.id !in currentIds }
                     if (newItems.isNotEmpty()) {
-                        // Novo item entrou no top-8: coloca na frente, mantém o resto na ordem atual
                         _stableMostUsed.value = (newItems + current)
                             .distinctBy { it.id }
                             .take(8)
                     }
-                    // Sem item novo → mantém ordem atual, não reordena por contagem
                 }
         }
     }
 
     val uiState: StateFlow<InicioUiState> = combine(
-        getHomeData(),
+        homeData,
         getContextSnapshot().distinctUntilChangedBy { it.mode },
         _stableRecentPhrases,
         _stableMostUsed,
@@ -140,11 +148,22 @@ class InicioViewModel @Inject constructor(
             getItemsByCategory(CATEGORY_SENTIMENTOS),
             getItemsByTexts(UNIVERSAL_NEED_TEXTS),
         ) { label, synthesizing, playing, emotions, rawNeeds ->
-            // Preserva a ordem estática de UNIVERSAL_NEED_TEXTS
             val needs = UNIVERSAL_NEED_TEXTS.mapNotNull { text -> rawNeeds.find { it.text == text } }
             TtsAndEmotionState(label, synthesizing, playing, emotions, needs)
         },
     ) { data, snapshot, stableRecent, stableMostUsed, ttsState ->
+        val allKnownItems = ttsState.emotions + ttsState.needs + stableMostUsed
+
+        // label→emoji: resolve emojis para sugestões do histórico fora de AppMode.items
+        val emojiLookup = allKnownItems
+            .filter { it.emoji.isNotBlank() }
+            .associate { it.text.lowercase(Locale.ROOT) to it.emoji }
+
+        // label→imageUri: garante o mesmo ícone ARASAAC em "Para agora" e demais seções
+        val imageUriLookup = allKnownItems
+            .filter { !it.imageUri.isNullOrBlank() }
+            .associate { it.text.lowercase(Locale.ROOT) to it.imageUri!! }
+
         InicioUiState(
             profile            = data.profile,
             greeting           = data.greeting,
@@ -153,7 +172,7 @@ class InicioViewModel @Inject constructor(
             routineNow         = data.routineNow,
             routineNext        = data.routineNext,
             appMode            = snapshot.mode,
-            contextSuggestions = getContextualSuggestions(snapshot),
+            contextSuggestions = getContextualSuggestions(snapshot, emojiLookup, imageUriLookup),
             emotionItems       = ttsState.emotions,
             universalNeedItems = ttsState.needs,
             loadingLabel       = if (ttsState.synthesizing) ttsState.label else null,
@@ -171,6 +190,18 @@ class InicioViewModel @Inject constructor(
 
     fun setMode(mode: AppMode) {
         viewModelScope.launch { prefsDataStore.setAppMode(mode) }
+    }
+
+    /**
+     * Fala uma sugestão contextual ou frase rápida.
+     * Se o texto corresponder a um item do banco já carregado, chama [speakItem]
+     * (incrementa usageCount → aparece em "Mais usadas"). Caso contrário, [speakPhrase].
+     */
+    fun speakSuggestion(text: String) {
+        val state = uiState.value
+        val knownItem = (state.emotionItems + state.universalNeedItems + state.mostUsedItems)
+            .find { it.text.equals(text, ignoreCase = true) }
+        if (knownItem != null) speakItem(knownItem) else speakPhrase(text)
     }
 
     fun speakPhrase(text: String) {

@@ -11,11 +11,13 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mood
 import androidx.compose.material3.*
+import androidx.compose.ui.draw.alpha
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -23,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.SubcomposeAsyncImage
 import com.count.iautista.domain.model.AppMode
 import com.count.iautista.domain.model.ButtonSize
 import com.count.iautista.domain.model.RoutineItem
@@ -152,11 +155,12 @@ fun InicioScreen(
                     QuickCard(
                         emoji = suggestion.emoji,
                         label = suggestion.label,
+                        imageUri = suggestion.imageUri,
                         isLoading = state.loadingLabel == suggestion.label,
                         isPlaying = state.playingLabel == suggestion.label,
                         onClick = {
                             sound.playTap()
-                            viewModel.speakPhrase(suggestion.label)
+                            viewModel.speakSuggestion(suggestion.label)
                         },
                     )
                 }
@@ -177,7 +181,6 @@ fun InicioScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 if (state.universalNeedItems.isNotEmpty()) {
-                    // Items do banco — pictograma ARASAAC consistente com o resto do app
                     state.universalNeedItems.forEach { item ->
                         CommunicationItemCard(
                             item = item,
@@ -191,19 +194,8 @@ fun InicioScreen(
                         )
                     }
                 } else {
-                    // Fallback estático enquanto o banco carrega (~<1s)
-                    universalNeeds.forEach { (emoji, label) ->
-                        NeedChip(
-                            emoji = emoji,
-                            label = label,
-                            isLoading = state.loadingLabel == label,
-                            isPlaying = state.playingLabel == label,
-                            onClick = {
-                                sound.playTap()
-                                viewModel.speakPhrase(label)
-                            },
-                        )
-                    }
+                    // Placeholder enquanto banco carrega — evita flash de emoji→ARASAAC
+                    repeat(5) { ItemCardPlaceholder() }
                 }
             }
         }
@@ -237,18 +229,8 @@ fun InicioScreen(
                         )
                     }
                 } else {
-                    emotionsFallback.forEach { (emoji, label) ->
-                        EmotionCard(
-                            emoji = emoji,
-                            label = label,
-                            isLoading = state.loadingLabel == label,
-                            isPlaying = state.playingLabel == label,
-                            onClick = {
-                                sound.playTap()
-                                viewModel.speakPhrase(label)
-                            },
-                        )
-                    }
+                    // Placeholder enquanto banco carrega — evita flash de emoji→ARASAAC
+                    repeat(8) { ItemCardPlaceholder() }
                 }
             }
         }
@@ -508,6 +490,7 @@ private fun QuickCard(
     emoji: String,
     label: String,
     onClick: () -> Unit,
+    imageUri: String? = null,
     isLoading: Boolean = false,
     isPlaying: Boolean = false,
     modifier: Modifier = Modifier,
@@ -550,6 +533,14 @@ private fun QuickCard(
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp),
+                    )
+                    imageUri != null -> SubcomposeAsyncImage(
+                        model = imageUri,
+                        contentDescription = label,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.size(36.dp),
+                        loading = { /* silencioso — emoji já foi mostrado antes */ },
+                        error = { Text(text = emoji, fontSize = 22.sp) },
                     )
                     else -> Text(text = emoji, fontSize = 22.sp)
                 }
@@ -670,4 +661,16 @@ private fun EmotionCard(
             )
         }
     }
+}
+
+/** Card cinza sem conteúdo — substitui emojis durante carregamento inicial do banco. */
+@Composable
+private fun ItemCardPlaceholder() {
+    Box(
+        modifier = Modifier
+            .size(88.dp, 116.dp)
+            .clip(ShapeCard)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .alpha(0.5f),
+    )
 }

@@ -29,29 +29,37 @@ import javax.inject.Singleton
  * Todas as camadas passam pela mesma fila de deduplicação (case-insensitive),
  * então uma frase nunca aparece duas vezes, independente de sua origem.
  *
- * ## Expansão futura
- * - Adicionar camada 0: frases específicas à atividade da rotina em andamento
- * - Adicionar [SuggestionSource.ROUTINE_ACTIVITY]
- * - Substituir lógica de slot por modelo leve de ML sem alterar a interface
+ * @param emojiLookup Mapa label→emoji construído pelo ViewModel a partir dos itens já
+ *   carregados do banco. Permite resolver o emoji para itens do histórico que não estão
+ *   em [AppMode.items] (ex: "Triste" falado via "Como estou").
  */
 @Singleton
 class GetContextualSuggestionsUseCase @Inject constructor() {
 
-    operator fun invoke(snapshot: ContextSnapshot): List<ContextSuggestion> {
+    operator fun invoke(
+        snapshot: ContextSnapshot,
+        emojiLookup: Map<String, String> = emptyMap(),
+        imageUriLookup: Map<String, String> = emptyMap(),
+    ): List<ContextSuggestion> {
         val seen   = mutableSetOf<String>()
         val result = mutableListOf<ContextSuggestion>()
 
         fun tryAdd(emoji: String, label: String, source: SuggestionSource) {
             if (result.size >= MAX_SUGGESTIONS) return
-            if (seen.add(label.lowercase(Locale.getDefault()))) {
-                result.add(ContextSuggestion(emoji, label, source))
+            if (seen.add(label.lowercase(Locale.ROOT))) {
+                result.add(ContextSuggestion(
+                    emoji    = emoji,
+                    label    = label,
+                    source   = source,
+                    imageUri = imageUriLookup[label.lowercase(Locale.ROOT)],
+                ))
             }
         }
 
         // Camada 1: histórico recente (últimos 30 min)
         snapshot.recentLabels.take(MAX_FROM_RECENT).forEach { label ->
             tryAdd(
-                emoji  = emojiFor(label, snapshot.mode),
+                emoji  = emojiFor(label, snapshot.mode, emojiLookup),
                 label  = label,
                 source = SuggestionSource.RECENT_HISTORY,
             )
@@ -60,7 +68,7 @@ class GetContextualSuggestionsUseCase @Inject constructor() {
         // Camada 2: mais usadas na faixa horária atual
         snapshot.topLabelsBySlot.take(MAX_FROM_SLOT).forEach { label ->
             tryAdd(
-                emoji  = emojiFor(label, snapshot.mode),
+                emoji  = emojiFor(label, snapshot.mode, emojiLookup),
                 label  = label,
                 source = SuggestionSource.FREQUENT_BY_SLOT,
             )
@@ -75,12 +83,22 @@ class GetContextualSuggestionsUseCase @Inject constructor() {
     }
 
     /**
-     * Resolve o emoji para um label buscando em [AppMode.items].
-     * Retorna "" se não encontrado — ocorre quando a frase veio do histórico
-     * e não tem correspondência no vocabulário do modo atual.
+     * Resolve o emoji para um label com prioridade:
+     * 1. [emojiLookup] — itens reais do banco (mais preciso)
+     * 2. [AppMode.items] do modo atual
+     * 3. Todos os modos — cobre itens de outros modos no histórico
+     * 4. "" — caso não encontrado (QuickCard mostra container vazio)
      */
-    private fun emojiFor(label: String, mode: AppMode): String =
-        mode.items.find { (_, l) -> l.equals(label, ignoreCase = true) }?.first ?: ""
+    private fun emojiFor(label: String, mode: AppMode, emojiLookup: Map<String, String>): String {
+        val key = label.lowercase(Locale.ROOT)
+        emojiLookup[key]?.takeIf { it.isNotBlank() }?.let { return it }
+        mode.items.find { (_, l) -> l.equals(label, ignoreCase = true) }?.first
+            ?.takeIf { it.isNotBlank() }?.let { return it }
+        AppMode.entries.flatMap { it.items }
+            .find { (_, l) -> l.equals(label, ignoreCase = true) }?.first
+            ?.takeIf { it.isNotBlank() }?.let { return it }
+        return ""
+    }
 
     private companion object {
         const val MAX_SUGGESTIONS = 7

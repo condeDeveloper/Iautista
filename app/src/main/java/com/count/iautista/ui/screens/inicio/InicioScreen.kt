@@ -145,7 +145,7 @@ fun InicioScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 state.contextSuggestions.forEach { suggestion ->
@@ -172,7 +172,7 @@ fun InicioScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 universalNeeds.forEach { (emoji, label) ->
@@ -197,7 +197,7 @@ fun InicioScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 // Usa itens do banco (categoria Sentimentos) quando disponíveis —
@@ -241,7 +241,7 @@ fun InicioScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     state.recentPhrases.take(6).forEach { phrase ->
@@ -289,7 +289,7 @@ fun InicioScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     state.mostUsedItems.forEach { item ->

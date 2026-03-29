@@ -31,7 +31,10 @@ class TtsManager @Inject constructor(
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val _isSynthesizing = MutableStateFlow(false)
-    /** True apenas enquanto a API Azure está sendo chamada (sem cache). Cache hits são instantâneos. */
+    /**
+     * True desde o momento do clique até o áudio terminar de tocar.
+     * Cobre síntese (rede) + reprodução — para a UI manter o loading durante todo o processo.
+     */
     val isSynthesizing: StateFlow<Boolean> = _isSynthesizing.asStateFlow()
 
     init {
@@ -61,37 +64,35 @@ class TtsManager @Inject constructor(
 
     // ── API pública ──────────────────────────────────────────────────────────
 
-    /**
-     * Fala [text]. Usa Azure Neural TTS se configurado (com cache local),
-     * senão cai no Android TTS padrão.
-     */
     fun speak(text: String) {
         if (text.isBlank()) return
+        _isSynthesizing.value = true
         if (azureTts.isConfigured) {
             scope.launch {
-                _isSynthesizing.value = true
                 try {
                     val file = azureTts.synthesize(text)
                     if (file != null) {
+                        // _isSynthesizing fica true até playAudioFile notificar conclusão
                         playAudioFile(file.absolutePath)
                     } else {
                         speakWithAndroid(text)
+                        _isSynthesizing.value = false
                     }
-                } finally {
+                } catch (e: Exception) {
+                    Log.e(TAG, "Erro Azure TTS: ${e.message}")
+                    speakWithAndroid(text)
                     _isSynthesizing.value = false
                 }
             }
         } else {
             speakWithAndroid(text)
+            _isSynthesizing.value = false
         }
     }
 
-    /**
-     * Reproduz áudio gravado pelo responsável se disponível,
-     * senão fala via TTS.
-     */
     fun speakOrPlayAudio(text: String, audioUri: String?) {
         if (!audioUri.isNullOrBlank()) {
+            _isSynthesizing.value = true
             playAudioFile(audioUri)
         } else {
             speak(text)
@@ -105,6 +106,7 @@ class TtsManager @Inject constructor(
     fun stop() {
         tts?.stop()
         releasePlayer()
+        _isSynthesizing.value = false
     }
 
     fun shutdown() {
@@ -113,6 +115,7 @@ class TtsManager @Inject constructor(
         tts = null
         isAndroidTtsReady = false
         releasePlayer()
+        _isSynthesizing.value = false
     }
 
     // ── Android TTS ──────────────────────────────────────────────────────────
@@ -135,10 +138,14 @@ class TtsManager @Inject constructor(
         try {
             currentPlayer = MediaPlayer().apply {
                 setDataSource(uri)
-                setOnCompletionListener { releasePlayer() }
+                setOnCompletionListener {
+                    releasePlayer()
+                    _isSynthesizing.value = false
+                }
                 setOnErrorListener { _, what, extra ->
                     Log.e(TAG, "MediaPlayer erro what=$what extra=$extra")
                     releasePlayer()
+                    _isSynthesizing.value = false
                     false
                 }
                 prepare()
@@ -147,6 +154,7 @@ class TtsManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao reproduzir: $uri", e)
             currentPlayer = null
+            _isSynthesizing.value = false
         }
     }
 

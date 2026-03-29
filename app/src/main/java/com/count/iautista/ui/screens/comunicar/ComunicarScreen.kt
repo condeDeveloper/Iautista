@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -80,6 +81,8 @@ fun ComunicarScreen(
                 ContextSuggestionChip(
                     emoji = emoji,
                     label = label,
+                    isLoading = state.isSynthesizingItem && state.speakingItemText == label,
+                    isPlaying = state.isPlayingItem && state.speakingItemText == label,
                     onClick = {
                         sound.playTap()
                         viewModel.speakQuick(label)
@@ -110,6 +113,8 @@ fun ComunicarScreen(
                         },
                         buttonSize = ButtonSize.SMALL,
                         isSelected = state.phraseItems.contains(item),
+                        isLoading = state.isSynthesizingItem && state.speakingItemText == item.text,
+                        isPlaying = state.isPlayingItem && state.speakingItemText == item.text,
                     )
                 }
             }
@@ -223,6 +228,8 @@ private fun ContextSuggestionChip(
     emoji: String,
     label: String,
     onClick: () -> Unit,
+    isLoading: Boolean = false,
+    isPlaying: Boolean = false,
 ) {
     ElevatedCard(
         onClick = onClick,
@@ -237,7 +244,20 @@ private fun ContextSuggestionChip(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(text = emoji, style = MaterialTheme.typography.bodyLarge)
+            when {
+                isLoading -> CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                isPlaying -> Icon(
+                    imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(18.dp),
+                )
+                else -> Text(text = emoji, style = MaterialTheme.typography.bodyLarge)
+            }
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelLarge.copy(

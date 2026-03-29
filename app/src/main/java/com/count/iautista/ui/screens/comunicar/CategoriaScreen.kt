@@ -80,6 +80,8 @@ fun CategoriaScreen(
                             },
                             buttonSize = ButtonSize.MEDIUM,
                             isSelected = state.phraseItems.contains(item),
+                            isLoading = state.isSynthesizingItem && state.speakingItemText == item.text,
+                            isPlaying = state.isPlayingItem && state.speakingItemText == item.text,
                         )
                         // Botão de favorito no canto do card
                         IconButton(

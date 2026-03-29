@@ -30,8 +30,15 @@ data class ComunicarUiState(
     val selectedCategory: CommunicationCategory? = null,
     val phraseItems: List<CommunicationItem> = emptyList(),
     val isLoading: Boolean = false,
+    /** True enquanto qualquer áudio está sendo processado (para a PhraseBar). */
     val isSpeaking: Boolean = false,
     val appMode: AppMode = AppMode.CASA,
+    /** Texto do item atualmente ativo (síntese ou reprodução). */
+    val speakingItemText: String? = null,
+    /** True durante síntese/download — exibe spinner no card. */
+    val isSynthesizingItem: Boolean = false,
+    /** True durante reprodução — exibe ícone de som no card. */
+    val isPlayingItem: Boolean = false,
 )
 
 @HiltViewModel
@@ -81,8 +88,17 @@ class ComunicarViewModel @Inject constructor(
             getFavorites().collect { favs -> _uiState.update { it.copy(favorites = favs) } }
         }
         viewModelScope.launch {
-            ttsManager.isSynthesizing.collect { speaking ->
-                _uiState.update { it.copy(isSpeaking = speaking) }
+            combine(ttsManager.isSynthesizing, ttsManager.isPlaying) { synthesizing, playing ->
+                Triple(synthesizing, playing, synthesizing || playing)
+            }.collect { (synthesizing, playing, active) ->
+                _uiState.update {
+                    it.copy(
+                        isSpeaking = active,
+                        isSynthesizingItem = synthesizing,
+                        isPlayingItem = playing,
+                        speakingItemText = if (!active) null else it.speakingItemText,
+                    )
+                }
             }
         }
     }
@@ -126,12 +142,14 @@ class ComunicarViewModel @Inject constructor(
     }
 
     fun speakItem(item: CommunicationItem) {
+        _uiState.update { it.copy(speakingItemText = item.text) }
         ttsManager.speakOrPlayAudio(item.text, item.audioUri)
         viewModelScope.launch { trackUsage(item) }
     }
 
     /** Fala uma sugestão contextual rápida e salva no histórico com o modo atual. */
     fun speakQuick(text: String) {
+        _uiState.update { it.copy(speakingItemText = text) }
         ttsManager.speak(text)
         viewModelScope.launch { saveQuickPhrase(text, _uiState.value.appMode) }
     }

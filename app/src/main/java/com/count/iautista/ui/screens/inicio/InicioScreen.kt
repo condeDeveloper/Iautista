@@ -152,7 +152,8 @@ fun InicioScreen(
                     QuickCard(
                         emoji = suggestion.emoji,
                         label = suggestion.label,
-                        isSpeaking = state.speakingLabel == suggestion.label,
+                        isLoading = state.loadingLabel == suggestion.label,
+                        isPlaying = state.playingLabel == suggestion.label,
                         onClick = {
                             sound.playTap()
                             viewModel.speakPhrase(suggestion.label)
@@ -179,6 +180,8 @@ fun InicioScreen(
                     NeedChip(
                         emoji = emoji,
                         label = label,
+                        isLoading = state.loadingLabel == label,
+                        isPlaying = state.playingLabel == label,
                         onClick = {
                             sound.playTap()
                             viewModel.speakPhrase(label)
@@ -208,7 +211,8 @@ fun InicioScreen(
                         EmotionCard(
                             emoji = item.emoji,
                             label = item.text,
-                            isSpeaking = state.speakingLabel == item.text,
+                            isLoading = state.loadingLabel == item.text,
+                            isPlaying = state.playingLabel == item.text,
                             onClick = {
                                 sound.playTap()
                                 viewModel.speakItem(item)
@@ -220,7 +224,8 @@ fun InicioScreen(
                         EmotionCard(
                             emoji = emoji,
                             label = label,
-                            isSpeaking = state.speakingLabel == label,
+                            isLoading = state.loadingLabel == label,
+                            isPlaying = state.playingLabel == label,
                             onClick = {
                                 sound.playTap()
                                 viewModel.speakPhrase(label)
@@ -245,6 +250,8 @@ fun InicioScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     state.recentPhrases.take(6).forEach { phrase ->
+                        val isChipLoading = state.loadingLabel == phrase.phraseText
+                        val isChipPlaying = state.playingLabel == phrase.phraseText
                         ElevatedCard(
                             onClick = {
                                 sound.playTap()
@@ -258,12 +265,25 @@ fun InicioScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(15.dp),
-                                )
+                                when {
+                                    isChipLoading -> CircularProgressIndicator(
+                                        modifier = Modifier.size(15.dp),
+                                        strokeWidth = 1.5.dp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                    isChipPlaying -> Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(15.dp),
+                                    )
+                                    else -> Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(15.dp),
+                                    )
+                                }
                                 Text(
                                     text = phrase.phraseText,
                                     style = MaterialTheme.typography.labelMedium.copy(
@@ -300,6 +320,8 @@ fun InicioScreen(
                                 viewModel.speakItem(item)
                             },
                             buttonSize = ButtonSize.SMALL,
+                            isLoading = state.loadingLabel == item.text,
+                            isPlaying = state.playingLabel == item.text,
                         )
                     }
                 }
@@ -469,7 +491,8 @@ private fun QuickCard(
     emoji: String,
     label: String,
     onClick: () -> Unit,
-    isSpeaking: Boolean = false,
+    isLoading: Boolean = false,
+    isPlaying: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     ElevatedCard(
@@ -491,17 +514,27 @@ private fun QuickCard(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(ShapeEmojiContainer)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(
+                        if (isLoading || isPlaying)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
-                if (isSpeaking) {
-                    CircularProgressIndicator(
+                when {
+                    isLoading -> CircularProgressIndicator(
                         modifier = Modifier.size(22.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.primary,
                     )
-                } else {
-                    Text(text = emoji, fontSize = 22.sp)
+                    isPlaying -> Icon(
+                        imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    else -> Text(text = emoji, fontSize = 22.sp)
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -522,6 +555,8 @@ private fun NeedChip(
     emoji: String,
     label: String,
     onClick: () -> Unit,
+    isLoading: Boolean = false,
+    isPlaying: Boolean = false,
 ) {
     ElevatedCard(
         onClick = onClick,
@@ -536,7 +571,20 @@ private fun NeedChip(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(text = emoji, fontSize = 18.sp)
+            when {
+                isLoading -> CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                isPlaying -> Icon(
+                    imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(18.dp),
+                )
+                else -> Text(text = emoji, fontSize = 18.sp)
+            }
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelLarge.copy(
@@ -549,7 +597,13 @@ private fun NeedChip(
 }
 
 @Composable
-private fun EmotionCard(emoji: String, label: String, isSpeaking: Boolean = false, onClick: () -> Unit) {
+private fun EmotionCard(
+    emoji: String,
+    label: String,
+    onClick: () -> Unit,
+    isLoading: Boolean = false,
+    isPlaying: Boolean = false,
+) {
     ElevatedCard(
         onClick = onClick,
         modifier = Modifier.size(92.dp),
@@ -567,17 +621,27 @@ private fun EmotionCard(emoji: String, label: String, isSpeaking: Boolean = fals
                 modifier = Modifier
                     .size(50.dp)
                     .clip(ShapeEmojiContainer)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(
+                        if (isLoading || isPlaying)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
-                if (isSpeaking) {
-                    CircularProgressIndicator(
+                when {
+                    isLoading -> CircularProgressIndicator(
                         modifier = Modifier.size(26.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.primary,
                     )
-                } else {
-                    Text(text = emoji, fontSize = 26.sp)
+                    isPlaying -> Icon(
+                        imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(26.dp),
+                    )
+                    else -> Text(text = emoji, fontSize = 26.sp)
                 }
             }
             Spacer(Modifier.height(5.dp))

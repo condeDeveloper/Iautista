@@ -36,8 +36,18 @@ data class InicioUiState(
     val contextSuggestions: List<ContextSuggestion> = emptyList(),
     /** Items do banco usados na seção "Como estou" — permite trackUsage correto. */
     val emotionItems: List<CommunicationItem> = emptyList(),
-    /** Label da frase sendo sintetizada pelo TTS (null = nenhuma). */
-    val speakingLabel: String? = null,
+    /** Label do item sendo baixado/sintetizado — exibe spinner. */
+    val loadingLabel: String? = null,
+    /** Label do item sendo reproduzido — exibe ícone de som. */
+    val playingLabel: String? = null,
+)
+
+/** Estado interno combinado de TTS + emoções para o combine aninhado. */
+private data class TtsAndEmotionState(
+    val label: String?,
+    val synthesizing: Boolean,
+    val playing: Boolean,
+    val emotions: List<CommunicationItem>,
 )
 
 @HiltViewModel
@@ -52,7 +62,8 @@ class InicioViewModel @Inject constructor(
     private val getItemsByCategory: GetItemsByCategoryUseCase,
 ) : ViewModel() {
 
-    private val _speakingLabel = MutableStateFlow<String?>(null)
+    /** Label do item ativo — limpo quando síntese e reprodução terminam. */
+    private val _activeLabel = MutableStateFlow<String?>(null)
 
     // recentPhrases estabilizado: só adiciona ao front quando há frase genuinamente nova.
     private val _stableRecentPhrases = MutableStateFlow<List<PhraseHistory>>(emptyList())
@@ -62,10 +73,10 @@ class InicioViewModel @Inject constructor(
     private val _stableMostUsed = MutableStateFlow<List<CommunicationItem>>(emptyList())
 
     init {
+        // Limpa o label ativo quando ambas as fases (síntese + reprodução) terminam
         viewModelScope.launch {
-            ttsManager.isSynthesizing.collect { synthesizing ->
-                if (!synthesizing) _speakingLabel.value = null
-            }
+            combine(ttsManager.isSynthesizing, ttsManager.isPlaying) { s, p -> s || p }
+                .collect { active -> if (!active) _activeLabel.value = null }
         }
 
         viewModelScope.launch {
@@ -114,10 +125,15 @@ class InicioViewModel @Inject constructor(
         getContextSnapshot().distinctUntilChangedBy { it.mode },
         _stableRecentPhrases,
         _stableMostUsed,
-        combine(_speakingLabel, getItemsByCategory(CATEGORY_SENTIMENTOS)) { label, emotions ->
-            label to emotions
+        combine(
+            _activeLabel,
+            ttsManager.isSynthesizing,
+            ttsManager.isPlaying,
+            getItemsByCategory(CATEGORY_SENTIMENTOS),
+        ) { label, synthesizing, playing, emotions ->
+            TtsAndEmotionState(label, synthesizing, playing, emotions)
         },
-    ) { data, snapshot, stableRecent, stableMostUsed, (speakingLabel, emotionItems) ->
+    ) { data, snapshot, stableRecent, stableMostUsed, ttsState ->
         InicioUiState(
             profile            = data.profile,
             greeting           = data.greeting,
@@ -127,8 +143,9 @@ class InicioViewModel @Inject constructor(
             routineNext        = data.routineNext,
             appMode            = snapshot.mode,
             contextSuggestions = getContextualSuggestions(snapshot),
-            emotionItems       = emotionItems,
-            speakingLabel      = speakingLabel,
+            emotionItems       = ttsState.emotions,
+            loadingLabel       = if (ttsState.synthesizing) ttsState.label else null,
+            playingLabel       = if (ttsState.playing && !ttsState.synthesizing) ttsState.label else null,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -145,13 +162,13 @@ class InicioViewModel @Inject constructor(
     }
 
     fun speakPhrase(text: String) {
-        _speakingLabel.value = text
+        _activeLabel.value = text
         ttsManager.speak(text)
         viewModelScope.launch { saveQuickPhrase(text, uiState.value.appMode) }
     }
 
     fun speakItem(item: CommunicationItem) {
-        _speakingLabel.value = item.text
+        _activeLabel.value = item.text
         ttsManager.speakOrPlayAudio(item.text, item.audioUri)
         viewModelScope.launch { trackUsage(item) }
     }

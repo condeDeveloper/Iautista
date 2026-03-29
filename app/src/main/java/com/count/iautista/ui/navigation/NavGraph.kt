@@ -1,5 +1,6 @@
 package com.count.iautista.ui.navigation
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
@@ -58,7 +59,11 @@ fun IautistaNavGraph(
     androidx.compose.runtime.CompositionLocalProvider(LocalSoundManager provides soundManager) {
     Scaffold(
         bottomBar = {
-            if (showBottomBar) {
+            AnimatedVisibility(
+                visible = showBottomBar,
+                enter = fadeIn(tween(220)),
+                exit = fadeOut(tween(180)),
+            ) {
                 IautistaBottomBar(
                     currentDestination = currentDestination,
                     onNavigate = { route ->

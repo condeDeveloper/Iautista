@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -26,6 +28,7 @@ import com.count.iautista.ui.theme.ShapeEmojiContainer
 
 // V2: container de emoji consistente com CategoryCard, estados de seleção mais polidos
 // V2.1: suporte a pictogramas ARASAAC via Coil, com emoji como fallback
+// V2.2: estados isLoading (spinner) e isPlaying (ícone de som) para feedback TTS
 @Composable
 fun CommunicationItemCard(
     item: CommunicationItem,
@@ -33,6 +36,8 @@ fun CommunicationItemCard(
     modifier: Modifier = Modifier,
     buttonSize: ButtonSize = ButtonSize.MEDIUM,
     isSelected: Boolean = false,
+    isLoading: Boolean = false,
+    isPlaying: Boolean = false,
 ) {
     val cardSize = when (buttonSize) {
         ButtonSize.SMALL  -> 88.dp
@@ -55,10 +60,11 @@ fun CommunicationItemCard(
     else
         MaterialTheme.colorScheme.surface
 
-    val emojiContainerColor = if (isSelected)
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-    else
-        MaterialTheme.colorScheme.surfaceVariant
+    val emojiContainerColor = when {
+        isLoading || isPlaying -> MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+        isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
 
     Card(
         modifier = modifier
@@ -86,45 +92,59 @@ fun CommunicationItemCard(
                     .background(emojiContainerColor),
                 contentAlignment = Alignment.Center,
             ) {
-                val imageUrl = item.displayImageUri
-                if (imageUrl != null) {
-                    val context = LocalContext.current
-                    SubcomposeAsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(imageUrl)
-                            .crossfade(300)
-                            .build(),
-                        contentDescription = item.text,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .size(emojiContainerSize)
-                            .clip(ShapeEmojiContainer),
-                        loading = {
-                            // Placeholder neutro — evita flash do ícone antigo durante carregamento
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(emojiContainerSize * 0.45f),
-                                    strokeWidth = 1.5.dp,
-                                )
-                            }
-                        },
-                        error = {
+                when {
+                    isLoading -> CircularProgressIndicator(
+                        modifier = Modifier.size(emojiContainerSize * 0.45f),
+                        strokeWidth = 1.5.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    isPlaying -> Icon(
+                        imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(emojiContainerSize * 0.55f),
+                    )
+                    else -> {
+                        val imageUrl = item.displayImageUri
+                        if (imageUrl != null) {
+                            val context = LocalContext.current
+                            SubcomposeAsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(imageUrl)
+                                    .crossfade(300)
+                                    .build(),
+                                contentDescription = item.text,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .size(emojiContainerSize)
+                                    .clip(ShapeEmojiContainer),
+                                loading = {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(emojiContainerSize * 0.45f),
+                                            strokeWidth = 1.5.dp,
+                                        )
+                                    }
+                                },
+                                error = {
+                                    Text(
+                                        text = item.emoji.ifBlank { "📌" },
+                                        fontSize = emojiFontSize,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                },
+                            )
+                        } else {
                             Text(
                                 text = item.emoji.ifBlank { "📌" },
                                 fontSize = emojiFontSize,
                                 textAlign = TextAlign.Center,
                             )
-                        },
-                    )
-                } else {
-                    Text(
-                        text = item.emoji.ifBlank { "📌" },
-                        fontSize = emojiFontSize,
-                        textAlign = TextAlign.Center,
-                    )
+                        }
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(6.dp))

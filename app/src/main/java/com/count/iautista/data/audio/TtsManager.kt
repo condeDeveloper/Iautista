@@ -5,6 +5,7 @@ import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -30,17 +31,19 @@ class TtsManager @Inject constructor(
     private var currentPlayer: MediaPlayer? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    /** True durante síntese/download — exibe spinner no card. */
     private val _isSynthesizing = MutableStateFlow(false)
-    /**
-     * True desde o momento do clique até o áudio terminar de tocar.
-     * Cobre síntese (rede) + reprodução — para a UI manter o loading durante todo o processo.
-     */
     val isSynthesizing: StateFlow<Boolean> = _isSynthesizing.asStateFlow()
+
+    /** True durante reprodução do áudio — exibe ícone de som no card. */
+    private val _isPlaying = MutableStateFlow(false)
+    val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
     init {
         tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 configureLanguage()
+                configureUtteranceListener()
                 isAndroidTtsReady = true
                 val pending = pendingQueue.toList()
                 pendingQueue.clear()
@@ -62,37 +65,53 @@ class TtsManager @Inject constructor(
         }
     }
 
+    private fun configureUtteranceListener() {
+        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {
+                _isSynthesizing.value = false
+                _isPlaying.value = true
+            }
+            override fun onDone(utteranceId: String?) {
+                _isPlaying.value = false
+            }
+            @Deprecated("Deprecated in Java")
+            override fun onError(utteranceId: String?) {
+                _isSynthesizing.value = false
+                _isPlaying.value = false
+            }
+        })
+    }
+
     // ── API pública ──────────────────────────────────────────────────────────
 
     fun speak(text: String) {
         if (text.isBlank()) return
         _isSynthesizing.value = true
+        _isPlaying.value = false
         if (azureTts.isConfigured) {
             scope.launch {
                 try {
                     val file = azureTts.synthesize(text)
                     if (file != null) {
-                        // _isSynthesizing fica true até playAudioFile notificar conclusão
+                        // _isSynthesizing permanece true; transição para _isPlaying em onPrepared
                         playAudioFile(file.absolutePath)
                     } else {
                         speakWithAndroid(text)
-                        _isSynthesizing.value = false
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Erro Azure TTS: ${e.message}")
                     speakWithAndroid(text)
-                    _isSynthesizing.value = false
                 }
             }
         } else {
             speakWithAndroid(text)
-            _isSynthesizing.value = false
         }
     }
 
     fun speakOrPlayAudio(text: String, audioUri: String?) {
         if (!audioUri.isNullOrBlank()) {
             _isSynthesizing.value = true
+            _isPlaying.value = false
             playAudioFile(audioUri)
         } else {
             speak(text)
@@ -107,6 +126,7 @@ class TtsManager @Inject constructor(
         tts?.stop()
         releasePlayer()
         _isSynthesizing.value = false
+        _isPlaying.value = false
     }
 
     fun shutdown() {
@@ -116,6 +136,7 @@ class TtsManager @Inject constructor(
         isAndroidTtsReady = false
         releasePlayer()
         _isSynthesizing.value = false
+        _isPlaying.value = false
     }
 
     // ── Android TTS ──────────────────────────────────────────────────────────
@@ -123,11 +144,12 @@ class TtsManager @Inject constructor(
     private fun speakWithAndroid(text: String) {
         if (!isAndroidTtsReady) {
             pendingQueue.add(text)
-            return
+            return // mantém _isSynthesizing=true; transição ocorre quando TTS fica pronto
         }
         val params = Bundle().apply {
             putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
         }
+        // _isSynthesizing permanece true; UtteranceProgressListener.onStart faz a transição
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, UUID.randomUUID().toString())
     }
 
@@ -138,23 +160,29 @@ class TtsManager @Inject constructor(
         try {
             currentPlayer = MediaPlayer().apply {
                 setDataSource(uri)
+                setOnPreparedListener { mp ->
+                    _isSynthesizing.value = false
+                    _isPlaying.value = true
+                    mp.start()
+                }
                 setOnCompletionListener {
                     releasePlayer()
-                    _isSynthesizing.value = false
+                    _isPlaying.value = false
                 }
                 setOnErrorListener { _, what, extra ->
                     Log.e(TAG, "MediaPlayer erro what=$what extra=$extra")
                     releasePlayer()
                     _isSynthesizing.value = false
+                    _isPlaying.value = false
                     false
                 }
-                prepare()
-                start()
+                prepareAsync()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao reproduzir: $uri", e)
             currentPlayer = null
             _isSynthesizing.value = false
+            _isPlaying.value = false
         }
     }
 

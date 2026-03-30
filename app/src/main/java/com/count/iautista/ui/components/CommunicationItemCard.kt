@@ -1,6 +1,7 @@
 package com.count.iautista.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,16 +10,18 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.count.iautista.domain.model.ButtonSize
@@ -26,9 +29,6 @@ import com.count.iautista.domain.model.CommunicationItem
 import com.count.iautista.ui.theme.ShapeCard
 import com.count.iautista.ui.theme.ShapeEmojiContainer
 
-// V2: container de emoji consistente com CategoryCard, estados de seleção mais polidos
-// V2.1: suporte a pictogramas ARASAAC via Coil, com emoji como fallback
-// V2.2: estados isLoading (spinner) e isPlaying (ícone de som) para feedback TTS
 @Composable
 fun CommunicationItemCard(
     item: CommunicationItem,
@@ -92,6 +92,8 @@ fun CommunicationItemCard(
                     .background(emojiContainerColor),
                 contentAlignment = Alignment.Center,
             ) {
+                val imageUrl = item.displayImageUri
+                val context = LocalContext.current
                 when {
                     isLoading -> CircularProgressIndicator(
                         modifier = Modifier.size(emojiContainerSize * 0.45f),
@@ -104,30 +106,57 @@ fun CommunicationItemCard(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(emojiContainerSize * 0.55f),
                     )
-                    else -> {
-                        // Emoji sempre visível como camada base — fallback natural
-                        // se a imagem falhar ou ainda não tiver carregado.
-                        Text(
-                            text = item.emoji.ifBlank { "📌" },
-                            fontSize = emojiFontSize,
-                            textAlign = TextAlign.Center,
-                        )
-                        val imageUrl = item.displayImageUri
-                        if (imageUrl != null) {
-                            val context = LocalContext.current
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(imageUrl)
-                                    .crossfade(300)
-                                    .build(),
+                    imageUrl != null && imageUrl.startsWith("android.resource://") -> {
+                        // Recurso local bundlado — painterResource é síncrono,
+                        // zero flash de emoji, zero crossfade.
+                        val resId = remember(imageUrl) {
+                            context.resources.getIdentifier(
+                                imageUrl.substringAfterLast("/"),
+                                "drawable",
+                                context.packageName,
+                            )
+                        }
+                        if (resId != 0) {
+                            Image(
+                                painter = painterResource(resId),
                                 contentDescription = item.text,
                                 contentScale = ContentScale.Fit,
                                 modifier = Modifier
                                     .size(emojiContainerSize)
                                     .clip(ShapeEmojiContainer),
                             )
+                        } else {
+                            Text(
+                                text = item.emoji.ifBlank { "📌" },
+                                fontSize = emojiFontSize,
+                                textAlign = TextAlign.Center,
+                            )
                         }
                     }
+                    imageUrl != null -> {
+                        // URL remota ou foto do usuário — emoji como fallback enquanto carrega
+                        Text(
+                            text = item.emoji.ifBlank { "📌" },
+                            fontSize = emojiFontSize,
+                            textAlign = TextAlign.Center,
+                        )
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(imageUrl)
+                                .crossfade(300)
+                                .build(),
+                            contentDescription = item.text,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .size(emojiContainerSize)
+                                .clip(ShapeEmojiContainer),
+                        )
+                    }
+                    else -> Text(
+                        text = item.emoji.ifBlank { "📌" },
+                        fontSize = emojiFontSize,
+                        textAlign = TextAlign.Center,
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(6.dp))

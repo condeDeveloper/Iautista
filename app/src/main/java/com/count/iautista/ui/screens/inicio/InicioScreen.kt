@@ -1,5 +1,6 @@
 package com.count.iautista.ui.screens.inicio
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -537,6 +540,7 @@ private fun QuickCard(
                     ),
                 contentAlignment = Alignment.Center,
             ) {
+                val context = LocalContext.current
                 when {
                     isLoading -> CircularProgressIndicator(
                         modifier = Modifier.size(22.dp),
@@ -549,8 +553,26 @@ private fun QuickCard(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp),
                     )
+                    imageUri != null && imageUri.startsWith("android.resource://") -> {
+                        val resId = remember(imageUri) {
+                            context.resources.getIdentifier(
+                                imageUri.substringAfterLast("/"),
+                                "drawable",
+                                context.packageName,
+                            )
+                        }
+                        if (resId != 0) {
+                            Image(
+                                painter = painterResource(resId),
+                                contentDescription = label,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.size(36.dp),
+                            )
+                        } else {
+                            Text(text = emoji, fontSize = 22.sp)
+                        }
+                    }
                     imageUri != null -> {
-                        // Emoji como camada base — AsyncImage faz crossfade por cima
                         Text(text = emoji, fontSize = 22.sp)
                         AsyncImage(
                             model = imageUri,

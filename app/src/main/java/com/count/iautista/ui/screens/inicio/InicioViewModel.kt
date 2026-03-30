@@ -32,6 +32,13 @@ private const val CATEGORY_SENTIMENTOS = 2L
 // Textos das necessidades universais — ordem fixa preservada ao mapear do banco
 private val UNIVERSAL_NEED_TEXTS = listOf("Banheiro", "Água", "Dói", "Ajuda", "Cansado")
 
+// União de todos os textos de sugestão de todos os modos + necessidades.
+// Um único getItemsByTexts carrega tudo o que a Home pode precisar exibir.
+private val ALL_HOME_TEXTS = (
+    UNIVERSAL_NEED_TEXTS +
+    AppMode.entries.flatMap { mode -> mode.items.map { (_, label) -> label } }
+).distinct()
+
 data class InicioUiState(
     val profile: ChildProfile? = null,
     val greeting: String = "Olá!",
@@ -58,6 +65,8 @@ private data class TtsAndEmotionState(
     val playing: Boolean,
     val emotions: List<CommunicationItem>,
     val needs: List<CommunicationItem>,
+    /** Todos os itens do banco pré-carregados para imageUri/emoji lookup na seção "Para agora". */
+    val allHomeItems: List<CommunicationItem>,
 )
 
 @HiltViewModel
@@ -148,13 +157,14 @@ class InicioViewModel @Inject constructor(
             ttsManager.isSynthesizing,
             ttsManager.isPlaying,
             getItemsByCategory(CATEGORY_SENTIMENTOS),
-            getItemsByTexts(UNIVERSAL_NEED_TEXTS),
-        ) { label, synthesizing, playing, emotions, rawNeeds ->
-            val needs = UNIVERSAL_NEED_TEXTS.mapNotNull { text -> rawNeeds.find { it.text == text } }
-            TtsAndEmotionState(label, synthesizing, playing, emotions, needs)
+            getItemsByTexts(ALL_HOME_TEXTS),
+        ) { label, synthesizing, playing, emotions, rawHomeItems ->
+            val needs = UNIVERSAL_NEED_TEXTS.mapNotNull { text -> rawHomeItems.find { it.text == text } }
+            TtsAndEmotionState(label, synthesizing, playing, emotions, needs, rawHomeItems)
         },
     ) { data, snapshot, stableRecent, stableMostUsed, ttsState ->
-        val allKnownItems = ttsState.emotions + ttsState.needs + stableMostUsed
+        // allHomeItems já inclui needs, mode items (Mamãe, Papai, Brincar…) e todos os textos contextuais
+        val allKnownItems = ttsState.allHomeItems + ttsState.emotions + stableMostUsed
 
         // label→emoji: resolve emojis para sugestões do histórico fora de AppMode.items
         val emojiLookup = allKnownItems

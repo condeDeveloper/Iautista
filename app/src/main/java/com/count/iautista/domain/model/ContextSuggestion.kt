@@ -1,5 +1,7 @@
 package com.count.iautista.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Origem de uma sugestão contextual.
  *
@@ -24,6 +26,7 @@ enum class SuggestionSource {
  * @param imageUri URI da imagem ARASAAC (ou foto customizada) do item correspondente no banco.
  *                 Quando presente, a UI deve exibir a imagem em vez do [emoji].
  */
+@Immutable
 data class ContextSuggestion(
     val emoji: String,
     val label: String,

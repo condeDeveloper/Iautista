@@ -1,5 +1,8 @@
 package com.count.iautista.domain.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class CommunicationItem(
     val id: Long = 0,
     val categoryId: Long,

@@ -204,19 +204,32 @@ fun InicioScreen(
         item {
             SectionHeader(title = "Como estou", leadingIcon = Icons.Filled.Mood)
         }
-        item {
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                // Usa itens do banco (categoria Sentimentos) quando disponíveis —
-                // permite trackUsage correto e entrada em "Mais usadas".
-                // Fallback para lista estática enquanto o banco carrega.
-                if (state.emotionItems.isNotEmpty()) {
-                    state.emotionItems.forEach { item ->
+        if (state.emotionItems.isEmpty()) {
+            // Placeholder enquanto banco carrega — evita flash de emoji→ARASAAC
+            item(key = "emotions_loading") {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) { repeat(8) { ItemCardPlaceholder() } }
+            }
+        } else {
+            // Cada linha é um item independente do LazyColumn — compõe 4 cards por frame
+            // em vez de 8 de uma vez, reduzindo jank ao rolar pra cá pela primeira vez.
+            items(
+                items = state.emotionItems.chunked(4),
+                key = { chunk -> "emotions_${chunk.first().id}" },
+            ) { rowItems ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    rowItems.forEach { item ->
                         CommunicationItemCard(
                             item = item,
                             onClick = {
@@ -228,9 +241,7 @@ fun InicioScreen(
                             isPlaying = state.playingLabel == item.text,
                         )
                     }
-                } else {
-                    // Placeholder enquanto banco carrega — evita flash de emoji→ARASAAC
-                    repeat(8) { ItemCardPlaceholder() }
+                    repeat(4 - rowItems.size) { Spacer(Modifier.size(88.dp, 116.dp)) }
                 }
             }
         }
@@ -303,15 +314,18 @@ fun InicioScreen(
             item {
                 SectionHeader(title = "Mais usadas", leadingIcon = Icons.Filled.Favorite)
             }
-            item {
-                FlowRow(
+            items(
+                items = state.mostUsedItems.chunked(4),
+                key = { chunk -> "mostused_${chunk.first().id}" },
+            ) { rowItems ->
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 4.dp),
+                        .padding(horizontal = 20.dp)
+                        .padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    state.mostUsedItems.forEach { item ->
+                    rowItems.forEach { item ->
                         CommunicationItemCard(
                             item = item,
                             onClick = {
@@ -323,6 +337,7 @@ fun InicioScreen(
                             isPlaying = state.playingLabel == item.text,
                         )
                     }
+                    repeat(4 - rowItems.size) { Spacer(Modifier.size(88.dp, 116.dp)) }
                 }
             }
         }

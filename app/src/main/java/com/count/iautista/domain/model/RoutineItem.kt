@@ -1,11 +1,14 @@
 package com.count.iautista.domain.model
 
+import androidx.compose.runtime.Immutable
+
 enum class RoutineStatus {
     NOW, NEXT, LATER, DONE;
 
     val isActive: Boolean get() = this != DONE
 }
 
+@Immutable
 data class RoutineItem(
     val id: Long = 0,
     val text: String,

@@ -12,6 +12,7 @@ import com.count.iautista.domain.model.HomeData
 import com.count.iautista.domain.model.SuggestionSource
 import com.count.iautista.domain.model.PhraseHistory
 import com.count.iautista.domain.model.RoutineItem
+import com.count.iautista.domain.usecase.comunicar.GetItemByTextUseCase
 import com.count.iautista.domain.usecase.comunicar.GetItemsByCategoryUseCase
 import com.count.iautista.domain.usecase.comunicar.GetItemsByTextsUseCase
 import com.count.iautista.domain.usecase.comunicar.TrackItemUsageUseCase
@@ -70,6 +71,7 @@ class InicioViewModel @Inject constructor(
     private val getContextualSuggestions: GetContextualSuggestionsUseCase,
     private val getItemsByCategory: GetItemsByCategoryUseCase,
     private val getItemsByTexts: GetItemsByTextsUseCase,
+    private val getItemByText: GetItemByTextUseCase,
 ) : ViewModel() {
 
     /** Label do item ativo — limpo quando síntese e reprodução terminam. */
@@ -199,9 +201,19 @@ class InicioViewModel @Inject constructor(
      */
     fun speakSuggestion(text: String) {
         val state = uiState.value
+        // Primeiro tenta nos itens já carregados em memória (sem IO)
         val knownItem = (state.emotionItems + state.universalNeedItems + state.mostUsedItems)
             .find { it.text.equals(text, ignoreCase = true) }
-        if (knownItem != null) speakItem(knownItem) else speakPhrase(text)
+        if (knownItem != null) {
+            speakItem(knownItem)
+            return
+        }
+        // Fallback: busca no banco para qualquer categoria (Pessoas, Descanso, etc.)
+        // Garante que "Papai", "Mamãe", "Dormir" etc. apareçam em "Mais usadas".
+        viewModelScope.launch {
+            val dbItem = getItemByText(text)
+            if (dbItem != null) speakItem(dbItem) else speakPhrase(text)
+        }
     }
 
     fun speakPhrase(text: String) {

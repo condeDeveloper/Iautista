@@ -34,6 +34,9 @@ class CommunicationRepositoryImpl @Inject constructor(
     override fun getItemsByTexts(texts: List<String>): Flow<List<CommunicationItem>> =
         itemDao.getItemsByTexts(texts).map { it.map { e -> e.toDomain() } }
 
+    override suspend fun getItemByText(text: String): CommunicationItem? =
+        itemDao.getItemByText(text)?.toDomain()
+
     override suspend fun saveItem(item: CommunicationItem): Long =
         itemDao.insert(item.toEntity())
 

@@ -67,4 +67,8 @@ interface CommunicationItemDao {
     /** Substitui sufixo de URL em todos os itens default — migra _500.png → _300.png. */
     @Query("UPDATE communication_items SET imageUri = REPLACE(imageUri, :oldSuffix, :newSuffix) WHERE isDefault = 1 AND imageUri LIKE '%' || :oldSuffix")
     suspend fun replaceImageUriSuffix(oldSuffix: String, newSuffix: String)
+
+    /** Busca um item pelo texto (case-insensitive) — usado para rastrear uso de sugestões contextuais. */
+    @Query("SELECT * FROM communication_items WHERE LOWER(text) = LOWER(:text) LIMIT 1")
+    suspend fun getItemByText(text: String): CommunicationItemEntity?
 }

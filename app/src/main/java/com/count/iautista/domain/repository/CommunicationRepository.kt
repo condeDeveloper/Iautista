@@ -19,6 +19,9 @@ interface CommunicationRepository {
 
     fun getItemsByTexts(texts: List<String>): Flow<List<CommunicationItem>>
 
+    /** Busca um item pelo texto (case-insensitive) — retorna null se não existir. */
+    suspend fun getItemByText(text: String): CommunicationItem?
+
     // ── Escrita ──────────────────────────────────────────────────────────────
 
     suspend fun saveItem(item: CommunicationItem): Long

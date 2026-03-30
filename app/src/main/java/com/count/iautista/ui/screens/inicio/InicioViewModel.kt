@@ -39,6 +39,12 @@ private val ALL_HOME_TEXTS = (
     AppMode.entries.flatMap { mode -> mode.items.map { (_, label) -> label } }
 ).distinct()
 
+/**
+ * Estado de dados da tela inicial — NÃO inclui estado TTS.
+ * TTS é coletado separadamente via [InicioViewModel.loadingLabel] e
+ * [InicioViewModel.playingLabel] para que cliques em cards não disparem
+ * recomputação de lookups, sugestões e seções de dados.
+ */
 data class InicioUiState(
     val profile: ChildProfile? = null,
     val greeting: String = "Olá!",
@@ -48,24 +54,14 @@ data class InicioUiState(
     val routineNext: List<RoutineItem> = emptyList(),
     val appMode: AppMode = AppMode.CASA,
     val contextSuggestions: List<ContextSuggestion> = emptyList(),
-    /** Items do banco usados na seção "Como estou" — permite trackUsage correto. */
     val emotionItems: List<CommunicationItem> = emptyList(),
-    /** Items do banco para "Necessidades" — mesma imagem ARASAAC em todo o app. */
     val universalNeedItems: List<CommunicationItem> = emptyList(),
-    /** Label do item sendo baixado/sintetizado — exibe spinner. */
-    val loadingLabel: String? = null,
-    /** Label do item sendo reproduzido — exibe ícone de som. */
-    val playingLabel: String? = null,
 )
 
-/** Estado interno combinado de TTS + emoções + necessidades para o combine aninhado. */
-private data class TtsAndEmotionState(
-    val label: String?,
-    val synthesizing: Boolean,
-    val playing: Boolean,
+/** Itens do banco usados para lookups na home — independente do TTS. */
+private data class HomeItemsState(
     val emotions: List<CommunicationItem>,
     val needs: List<CommunicationItem>,
-    /** Todos os itens do banco pré-carregados para imageUri/emoji lookup na seção "Para agora". */
     val allHomeItems: List<CommunicationItem>,
 )
 
@@ -90,19 +86,50 @@ class InicioViewModel @Inject constructor(
     private val _stableRecentPhrases = MutableStateFlow<List<PhraseHistory>>(emptyList())
 
     // mostUsedItems estabilizado: não reordena quando item já presente é clicado.
-    // Só adiciona ao front quando um item genuinamente novo entra no top-8.
     private val _stableMostUsed = MutableStateFlow<List<CommunicationItem>>(emptyList())
 
-    // Flow compartilhado — substitui as 3 chamadas independentes a getHomeData(),
-    // reduzindo de 12 para 4 queries de DB ativas simultaneamente.
+    // Flow compartilhado de dados gerais — 1 query em vez de 3.
     private val homeData: StateFlow<HomeData> = getHomeData().stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
         initialValue = HomeData(),
     )
 
+    // Itens do banco necessários para a home — independente do TTS.
+    // Só re-emite quando o banco muda, não quando o usuário clica.
+    private val homeItemsState: StateFlow<HomeItemsState> = combine(
+        getItemsByCategory(CATEGORY_SENTIMENTOS),
+        getItemsByTexts(ALL_HOME_TEXTS),
+    ) { emotions, rawHomeItems ->
+        val needs = UNIVERSAL_NEED_TEXTS.mapNotNull { text -> rawHomeItems.find { it.text == text } }
+        HomeItemsState(emotions, needs, rawHomeItems)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = HomeItemsState(emptyList(), emptyList(), emptyList()),
+    )
+
+    // ── Estado TTS — coletado separadamente na UI ────────────────────────────
+    // Separar do uiState garante que cliques em cards NÃO recomputem
+    // emojiLookup, imageUriLookup, contextSuggestions nem nenhuma seção de dados.
+
+    /** Label do item sendo sintetizado — UI exibe spinner apenas neste card. */
+    val loadingLabel: StateFlow<String?> = combine(
+        _activeLabel,
+        ttsManager.isSynthesizing,
+    ) { label, synthesizing -> if (synthesizing) label else null }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Label do item sendo reproduzido — UI exibe ícone de som apenas neste card. */
+    val playingLabel: StateFlow<String?> = combine(
+        _activeLabel,
+        ttsManager.isSynthesizing,
+        ttsManager.isPlaying,
+    ) { label, synthesizing, playing -> if (playing && !synthesizing) label else null }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     init {
-        // Limpa o label ativo quando ambas as fases (síntese + reprodução) terminam
+        // Limpa o label ativo quando ambas as fases terminam
         viewModelScope.launch {
             combine(ttsManager.isSynthesizing, ttsManager.isPlaying) { s, p -> s || p }
                 .collect { active -> if (!active) _activeLabel.value = null }
@@ -147,31 +174,22 @@ class InicioViewModel @Inject constructor(
         }
     }
 
+    // uiState só re-emite por mudanças de dados reais:
+    // perfil, saudação, modo, histórico, itens do banco, rotina.
+    // NÃO re-emite por TTS → zero recomputação de lookups/sugestões por clique.
     val uiState: StateFlow<InicioUiState> = combine(
         homeData,
         getContextSnapshot().distinctUntilChangedBy { it.mode },
         _stableRecentPhrases,
         _stableMostUsed,
-        combine(
-            _activeLabel,
-            ttsManager.isSynthesizing,
-            ttsManager.isPlaying,
-            getItemsByCategory(CATEGORY_SENTIMENTOS),
-            getItemsByTexts(ALL_HOME_TEXTS),
-        ) { label, synthesizing, playing, emotions, rawHomeItems ->
-            val needs = UNIVERSAL_NEED_TEXTS.mapNotNull { text -> rawHomeItems.find { it.text == text } }
-            TtsAndEmotionState(label, synthesizing, playing, emotions, needs, rawHomeItems)
-        },
-    ) { data, snapshot, stableRecent, stableMostUsed, ttsState ->
-        // allHomeItems já inclui needs, mode items (Mamãe, Papai, Brincar…) e todos os textos contextuais
-        val allKnownItems = ttsState.allHomeItems + ttsState.emotions + stableMostUsed
+        homeItemsState,
+    ) { data, snapshot, stableRecent, stableMostUsed, itemsState ->
+        val allKnownItems = itemsState.allHomeItems + itemsState.emotions + stableMostUsed
 
-        // label→emoji: resolve emojis para sugestões do histórico fora de AppMode.items
         val emojiLookup = allKnownItems
             .filter { it.emoji.isNotBlank() }
             .associate { it.text.lowercase(Locale.ROOT) to it.emoji }
 
-        // label→imageUri: garante o mesmo ícone ARASAAC em "Para agora" e demais seções
         val imageUriLookup = allKnownItems
             .filter { !it.imageUri.isNullOrBlank() }
             .associate { it.text.lowercase(Locale.ROOT) to it.imageUri!! }
@@ -185,10 +203,8 @@ class InicioViewModel @Inject constructor(
             routineNext        = data.routineNext,
             appMode            = snapshot.mode,
             contextSuggestions = getContextualSuggestions(snapshot, emojiLookup, imageUriLookup),
-            emotionItems       = ttsState.emotions,
-            universalNeedItems = ttsState.needs,
-            loadingLabel       = if (ttsState.synthesizing) ttsState.label else null,
-            playingLabel       = if (ttsState.playing && !ttsState.synthesizing) ttsState.label else null,
+            emotionItems       = itemsState.emotions,
+            universalNeedItems = itemsState.needs,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -204,22 +220,14 @@ class InicioViewModel @Inject constructor(
         viewModelScope.launch { prefsDataStore.setAppMode(mode) }
     }
 
-    /**
-     * Fala uma sugestão contextual ou frase rápida.
-     * Se o texto corresponder a um item do banco já carregado, chama [speakItem]
-     * (incrementa usageCount → aparece em "Mais usadas"). Caso contrário, [speakPhrase].
-     */
     fun speakSuggestion(text: String) {
         val state = uiState.value
-        // Primeiro tenta nos itens já carregados em memória (sem IO)
         val knownItem = (state.emotionItems + state.universalNeedItems + state.mostUsedItems)
             .find { it.text.equals(text, ignoreCase = true) }
         if (knownItem != null) {
             speakItem(knownItem)
             return
         }
-        // Fallback: busca no banco para qualquer categoria (Pessoas, Descanso, etc.)
-        // Garante que "Papai", "Mamãe", "Dormir" etc. apareçam em "Mais usadas".
         viewModelScope.launch {
             val dbItem = getItemByText(text)
             if (dbItem != null) speakItem(dbItem) else speakPhrase(text)

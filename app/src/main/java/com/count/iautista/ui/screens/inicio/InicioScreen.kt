@@ -82,6 +82,9 @@ fun InicioScreen(
     viewModel: InicioViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    // TTS coletado separadamente — mudanças de loading/playing NÃO recomputam uiState
+    val loadingLabel by viewModel.loadingLabel.collectAsState()
+    val playingLabel by viewModel.playingLabel.collectAsState()
     val sound = LocalSoundManager.current
 
     LazyColumn(
@@ -159,8 +162,8 @@ fun InicioScreen(
                         emoji = suggestion.emoji,
                         label = suggestion.label,
                         imageUri = suggestion.imageUri,
-                        isLoading = state.loadingLabel == suggestion.label,
-                        isPlaying = state.playingLabel == suggestion.label,
+                        isLoading = loadingLabel == suggestion.label,
+                        isPlaying = playingLabel == suggestion.label,
                         onClick = {
                             sound.playTap()
                             viewModel.speakSuggestion(suggestion.label)
@@ -192,8 +195,8 @@ fun InicioScreen(
                                 viewModel.speakItem(item)
                             },
                             buttonSize = ButtonSize.SMALL,
-                            isLoading = state.loadingLabel == item.text,
-                            isPlaying = state.playingLabel == item.text,
+                            isLoading = loadingLabel == item.text,
+                            isPlaying = playingLabel == item.text,
                         )
                     }
                 } else {
@@ -240,8 +243,8 @@ fun InicioScreen(
                                 viewModel.speakItem(item)
                             },
                             buttonSize = ButtonSize.SMALL,
-                            isLoading = state.loadingLabel == item.text,
-                            isPlaying = state.playingLabel == item.text,
+                            isLoading = loadingLabel == item.text,
+                            isPlaying = playingLabel == item.text,
                         )
                     }
                     repeat(4 - rowItems.size) { Spacer(Modifier.size(88.dp, 116.dp)) }
@@ -263,8 +266,8 @@ fun InicioScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     state.recentPhrases.take(6).forEach { phrase ->
-                        val isChipLoading = state.loadingLabel == phrase.phraseText
-                        val isChipPlaying = state.playingLabel == phrase.phraseText
+                        val isChipLoading = loadingLabel == phrase.phraseText
+                        val isChipPlaying = playingLabel == phrase.phraseText
                         ElevatedCard(
                             onClick = {
                                 sound.playTap()
@@ -336,8 +339,8 @@ fun InicioScreen(
                                 viewModel.speakItem(item)
                             },
                             buttonSize = ButtonSize.SMALL,
-                            isLoading = state.loadingLabel == item.text,
-                            isPlaying = state.playingLabel == item.text,
+                            isLoading = loadingLabel == item.text,
+                            isPlaying = playingLabel == item.text,
                         )
                     }
                     repeat(4 - rowItems.size) { Spacer(Modifier.size(88.dp, 116.dp)) }

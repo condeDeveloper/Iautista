@@ -3,7 +3,7 @@ package com.count.iautista.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // =============================================================================
-// PALETA V2 — Iautista
+// PALETA V2 — Vozinha
 // Princípio: calma, acolhedora, consistente, sem excessos
 // =============================================================================
 

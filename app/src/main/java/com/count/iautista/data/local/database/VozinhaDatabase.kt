@@ -18,7 +18,7 @@ import com.count.iautista.data.local.entity.*
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
-abstract class IautistaDatabase : RoomDatabase() {
+abstract class VozinhaDatabase : RoomDatabase() {
     abstract fun childProfileDao(): ChildProfileDao
     abstract fun communicationCategoryDao(): CommunicationCategoryDao
     abstract fun communicationItemDao(): CommunicationItemDao

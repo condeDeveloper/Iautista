@@ -14,9 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.count.iautista.data.preferences.UserPreferencesDataStore
 import com.count.iautista.data.seed.DatabaseSeeder
-import com.count.iautista.ui.navigation.IautistaNavGraph
+import com.count.iautista.ui.navigation.VozinhaNavGraph
 import com.count.iautista.ui.navigation.Screen
-import com.count.iautista.ui.theme.IautistaTheme
+import com.count.iautista.ui.theme.VozinhaTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            IautistaTheme {
+            VozinhaTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     var startDestination by remember { mutableStateOf<String?>(null) }
 
@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity() {
                             CircularProgressIndicator()
                         }
                     } else {
-                        IautistaNavGraph(startDestination = startDestination!!)
+                        VozinhaNavGraph(startDestination = startDestination!!)
                     }
                 }
             }

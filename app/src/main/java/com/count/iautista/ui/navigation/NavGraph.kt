@@ -45,7 +45,7 @@ import com.count.iautista.ui.screens.responsavel.pin.PinValidationScreen
 import com.count.iautista.ui.screens.rotina.RotinaScreen
 
 @Composable
-fun IautistaNavGraph(
+fun VozinhaNavGraph(
     startDestination: String = Screen.Onboarding.route,
 ) {
     val soundManager = remember { SoundManager() }
@@ -76,7 +76,7 @@ fun IautistaNavGraph(
                 enter = fadeIn(tween(220)),
                 exit = fadeOut(tween(180)),
             ) {
-                IautistaBottomBar(
+                VozinhaBottomBar(
                     currentDestination = currentDestination,
                     onNavigate = { route ->
                         navController.navigate(route) {
@@ -230,7 +230,7 @@ fun IautistaNavGraph(
 // ── Bottom Navigation Bar ─────────────────────────────────────────────────────
 
 @Composable
-private fun IautistaBottomBar(
+private fun VozinhaBottomBar(
     currentDestination: NavDestination?,
     onNavigate: (String) -> Unit,
 ) {

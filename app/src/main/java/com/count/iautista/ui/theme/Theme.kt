@@ -5,7 +5,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 
-private val IautistaColorScheme = lightColorScheme(
+private val VozinhaColorScheme = lightColorScheme(
     primary              = ColorPrimary,
     onPrimary            = ColorOnPrimary,
     primaryContainer     = ColorPrimaryContainer,
@@ -31,14 +31,14 @@ private val IautistaColorScheme = lightColorScheme(
 )
 
 @Composable
-fun IautistaTheme(
+fun VozinhaTheme(
     content: @Composable () -> Unit
 ) {
     CompositionLocalProvider(LocalSpacing provides Spacing()) {
         MaterialTheme(
-            colorScheme = IautistaColorScheme,
-            typography  = IautistaTypography,
-            shapes      = IautistaShapes,
+            colorScheme = VozinhaColorScheme,
+            typography  = VozinhaTypography,
+            shapes      = VozinhaShapes,
             content     = content,
         )
     }

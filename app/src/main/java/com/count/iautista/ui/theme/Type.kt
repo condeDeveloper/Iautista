@@ -26,7 +26,7 @@ val NunitoFontFamily = FontFamily(
 )
 
 // V2: escala tipográfica revisada — hierarquia mais clara
-val IautistaTypography = Typography(
+val VozinhaTypography = Typography(
     // Títulos de tela grandes (hero, onboarding)
     displayLarge = TextStyle(
         fontFamily = NunitoFontFamily,

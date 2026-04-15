@@ -21,12 +21,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
 
 @Singleton
 class BillingManager @Inject constructor(
@@ -38,6 +43,9 @@ class BillingManager @Inject constructor(
 
     private val _isPremium = MutableStateFlow(false)
     val isPremiumFlow: Flow<Boolean> = _isPremium.asStateFlow()
+
+    private val _billingError = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val billingErrorFlow: SharedFlow<String> = _billingError.asSharedFlow()
 
     private val billingClient: BillingClient = BillingClient.newBuilder(context)
         .setListener(this)
@@ -72,40 +80,97 @@ class BillingManager @Inject constructor(
         })
     }
 
+    /**
+     * Aguarda o BillingClient estar pronto antes de prosseguir.
+     * Se já estiver pronto, retorna imediatamente. Caso contrário, inicia
+     * a conexão e suspende até o callback.
+     */
+    private suspend fun ensureConnected(): Boolean {
+        if (billingClient.isReady) return true
+        return suspendCancellableCoroutine { cont ->
+            billingClient.startConnection(object : BillingClientStateListener {
+                override fun onBillingSetupFinished(result: BillingResult) {
+                    if (cont.isActive) {
+                        cont.resume(result.responseCode == BillingClient.BillingResponseCode.OK)
+                    }
+                }
+                override fun onBillingServiceDisconnected() {
+                    if (cont.isActive) cont.resume(false)
+                }
+            })
+        }
+    }
+
     // ── Lançar fluxo de compra ────────────────────────────────────────────────
 
-    fun launchBillingFlow(activity: Activity, callerScope: CoroutineScope) {
-        if (!billingClient.isReady) { connect(); return }
+    fun launchBillingFlow(
+        activity: Activity,
+        callerScope: CoroutineScope,
+        productId: String = BillingService.PREMIUM_MONTHLY_ID,
+    ) {
+        android.util.Log.d(TAG, "launchBillingFlow: productId=$productId isReady=${billingClient.isReady}")
 
         callerScope.launch(Dispatchers.IO) {
+            if (!ensureConnected()) {
+                android.util.Log.e(TAG, "BillingClient não pôde conectar ao Google Play")
+                _billingError.tryEmit("Não foi possível conectar ao Google Play. Verifique sua conexão e tente novamente.")
+                return@launch
+            }
+
+            val productType = if (productId == BillingService.PREMIUM_LIFETIME_ID)
+                BillingClient.ProductType.INAPP
+            else
+                BillingClient.ProductType.SUBS
+
             val params = QueryProductDetailsParams.newBuilder()
                 .setProductList(
                     listOf(
                         QueryProductDetailsParams.Product.newBuilder()
-                            .setProductId(BillingService.PREMIUM_PRODUCT_ID)
-                            .setProductType(BillingClient.ProductType.SUBS)
+                            .setProductId(productId)
+                            .setProductType(productType)
                             .build()
                     )
                 )
                 .build()
 
             val detailsResult = billingClient.queryProductDetails(params)
-            if (detailsResult.billingResult.responseCode != BillingClient.BillingResponseCode.OK) return@launch
+            android.util.Log.d(TAG, "queryProductDetails: code=${detailsResult.billingResult.responseCode} message=${detailsResult.billingResult.debugMessage} products=${detailsResult.productDetailsList?.size}")
 
-            val product = detailsResult.productDetailsList?.firstOrNull() ?: return@launch
-            val offerToken = product.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: return@launch
+            if (detailsResult.billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                android.util.Log.e(TAG, "queryProductDetails falhou: ${detailsResult.billingResult.debugMessage}")
+                _billingError.tryEmit("Erro ao buscar produto no Google Play. Tente novamente.")
+                return@launch
+            }
+
+            val product = detailsResult.productDetailsList?.firstOrNull()
+            if (product == null) {
+                android.util.Log.e(TAG, "Produto não encontrado: $productId — verifique se o ID está correto e ativo no Console")
+                _billingError.tryEmit("Produto não encontrado. Verifique a configuração no Google Play Console.")
+                return@launch
+            }
+
+            val productDetailsParams = if (productType == BillingClient.ProductType.SUBS) {
+                val offerToken = product.subscriptionOfferDetails?.firstOrNull()?.offerToken
+                if (offerToken == null) {
+                    android.util.Log.e(TAG, "offerToken nulo para $productId")
+                    _billingError.tryEmit("Erro ao preparar assinatura. Tente novamente.")
+                    return@launch
+                }
+                BillingFlowParams.ProductDetailsParams.newBuilder()
+                    .setProductDetails(product)
+                    .setOfferToken(offerToken)
+                    .build()
+            } else {
+                BillingFlowParams.ProductDetailsParams.newBuilder()
+                    .setProductDetails(product)
+                    .build()
+            }
 
             val flowParams = BillingFlowParams.newBuilder()
-                .setProductDetailsParamsList(
-                    listOf(
-                        BillingFlowParams.ProductDetailsParams.newBuilder()
-                            .setProductDetails(product)
-                            .setOfferToken(offerToken)
-                            .build()
-                    )
-                )
+                .setProductDetailsParamsList(listOf(productDetailsParams))
                 .build()
 
+            android.util.Log.d(TAG, "Abrindo billing flow para $productId")
             withContext(Dispatchers.Main) {
                 billingClient.launchBillingFlow(activity, flowParams)
             }
@@ -116,24 +181,56 @@ class BillingManager @Inject constructor(
 
     suspend fun restorePurchases() {
         if (!billingClient.isReady) return
-        val result = billingClient.queryPurchasesAsync(
+
+        val allPurchases = mutableListOf<Purchase>()
+
+        // Assinaturas (mensal + anual)
+        val subsResult = billingClient.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder()
                 .setProductType(BillingClient.ProductType.SUBS)
                 .build()
         )
-        if (result.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-            handlePurchases(result.purchasesList)
+        if (subsResult.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            allPurchases.addAll(subsResult.purchasesList)
+        }
+
+        // Compras únicas (vitalício)
+        val inappResult = billingClient.queryPurchasesAsync(
+            QueryPurchasesParams.newBuilder()
+                .setProductType(BillingClient.ProductType.INAPP)
+                .build()
+        )
+        if (inappResult.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            allPurchases.addAll(inappResult.purchasesList)
+        }
+
+        handlePurchases(allPurchases)
+    }
+
+    // ── Debug (apenas builds de desenvolvimento) ──────────────────────────────
+
+    fun debugSetPremium(value: Boolean) {
+        scope.launch {
+            dataStore.setPremium(value)
+            _isPremium.value = value
         }
     }
 
     // ── Listener de atualizações de compra ────────────────────────────────────
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: List<Purchase>?) {
+        android.util.Log.d(TAG, "onPurchasesUpdated: code=${result.responseCode} message=${result.debugMessage}")
         if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             scope.launch { handlePurchases(purchases) }
         } else if (result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-            // Usuário cancelou — sem ação necessária
+            android.util.Log.d(TAG, "Usuário cancelou a compra")
+        } else {
+            android.util.Log.e(TAG, "Erro na compra: ${result.responseCode} — ${result.debugMessage}")
         }
+    }
+
+    companion object {
+        private const val TAG = "BillingManager"
     }
 
     // ── Processar e reconhecer compras ────────────────────────────────────────
@@ -141,7 +238,7 @@ class BillingManager @Inject constructor(
     private suspend fun handlePurchases(purchases: List<Purchase>) {
         val isActive = purchases.any { purchase ->
             purchase.purchaseState == Purchase.PurchaseState.PURCHASED &&
-            BillingService.PREMIUM_PRODUCT_ID in purchase.products
+            purchase.products.any { it in BillingService.ALL_PREMIUM_IDS }
         }
         dataStore.setPremium(isActive)
         _isPremium.value = isActive

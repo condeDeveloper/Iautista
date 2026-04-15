@@ -1,18 +1,24 @@
 package com.count.iautista.ui.screens.auth
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import android.app.Activity
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.count.iautista.data.billing.BillingService
 import com.count.iautista.ui.screens.responsavel.ResponsavelViewModel
+import com.count.iautista.ui.utils.findActivity
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,11 +75,86 @@ fun ContaScreen(
                 )
                 Spacer(modifier = Modifier.height(32.dp))
 
-                AccountInfoItem(
-                    icon = Icons.Filled.Star,
-                    title = "Plano atual",
-                    value = if (isPremium) "Premium" else "Gratuito",
-                )
+                // ── Seção de assinatura ───────────────────────────────────
+                Spacer(modifier = Modifier.height(8.dp))
+                if (isPremium) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        ),
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Filled.Star,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Vozinha Premium",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Voz ilimitada · Itens ilimitados · Histórico completo · Backup automático",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse("https://play.google.com/store/account/subscriptions?package=com.count.iautista"),
+                                    )
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Gerenciar assinatura", style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                    }
+                } else {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        ),
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Filled.Person,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Plano Gratuito",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "· Até ${BillingService.FREE_CUSTOM_ITEMS_LIMIT} itens personalizados\n" +
+                                "· ${BillingService.FREE_TTS_DAILY_LIMIT} falas por dia\n" +
+                                "· Histórico dos últimos ${BillingService.FREE_HISTORY_DAYS} dias",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
                 HorizontalDivider()
 
                 // Backup manual
@@ -105,40 +186,6 @@ fun ContaScreen(
                 }
                 HorizontalDivider()
 
-                if (!isPremium) {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Conheça o Premium", style = MaterialTheme.typography.titleMedium)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                "Itens ilimitados, histórico completo e backup automático.",
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = {
-                                    (context as? Activity)?.let { billingViewModel.launchBillingFlow(it) }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text("Assinar Premium")
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            TextButton(
-                                onClick = { billingViewModel.restorePurchases() },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text("Restaurar compra", style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
-                }
 
                 Spacer(modifier = Modifier.weight(1f))
 
@@ -152,7 +199,7 @@ fun ContaScreen(
                         contentColor = MaterialTheme.colorScheme.error
                     ),
                 ) {
-                    Icon(Icons.Filled.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Sair da conta")
                 }

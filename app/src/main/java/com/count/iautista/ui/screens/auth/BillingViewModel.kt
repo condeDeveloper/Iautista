@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.count.iautista.data.billing.BillingManager
 import com.count.iautista.data.billing.BillingService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -21,11 +22,23 @@ class BillingViewModel @Inject constructor(
     val isPremium: StateFlow<Boolean> = billingManager.isPremiumFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    fun launchBillingFlow(activity: Activity) {
-        billingManager.launchBillingFlow(activity, viewModelScope)
+    val ttsDailyCount: StateFlow<Int> = billingService.ttsDailyCountFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    val billingError: SharedFlow<String> = billingManager.billingErrorFlow
+
+    fun launchBillingFlow(
+        activity: Activity,
+        productId: String = BillingService.PREMIUM_MONTHLY_ID,
+    ) {
+        billingManager.launchBillingFlow(activity, viewModelScope, productId)
     }
 
     fun restorePurchases() {
         viewModelScope.launch { billingService.restorePurchases() }
+    }
+
+    fun debugSetPremium(value: Boolean) {
+        billingManager.debugSetPremium(value)
     }
 }

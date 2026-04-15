@@ -38,6 +38,7 @@ import com.count.iautista.ui.screens.configuracoes.ConfiguracoesScreen
 import com.count.iautista.ui.screens.responsavel.AdicionarItemScreen
 import com.count.iautista.ui.screens.responsavel.GerenciarItensScreen
 import com.count.iautista.ui.screens.responsavel.GerenciarPerfisScreen
+import com.count.iautista.ui.screens.premium.PremiumScreen
 import com.count.iautista.ui.screens.responsavel.GerenciarRotinaScreen
 import com.count.iautista.ui.screens.responsavel.ResponsavelScreen
 import com.count.iautista.ui.screens.responsavel.pin.PinSetupScreen
@@ -176,7 +177,9 @@ fun VozinhaNavGraph(
                 )
             }
             composable(Screen.Historico.route) {
-                HistoricoScreen()
+                HistoricoScreen(
+                    onNavigateToPremium = { navController.navigate(Screen.Premium.route) },
+                )
             }
             composable(Screen.Responsavel.route) {
                 ResponsavelScreen(
@@ -186,13 +189,17 @@ fun VozinhaNavGraph(
                     onNavigateToGerenciarRotina = { navController.navigate(Screen.GerenciarRotina.route) },
                     onNavigateToConfiguracoes   = { navController.navigate(Screen.Configuracoes.route) },
                     onNavigateToConta           = { navController.navigate(Screen.Conta.route) },
+                    onNavigateToPremium         = { navController.navigate(Screen.Premium.route) },
                     onRequirePin                = { navController.navigate(Screen.PinValidation.route) },
                 )
             }
 
             // ── Sub-telas do Responsável ──────────────────────────────────────
             composable(Screen.GerenciarPerfis.route) {
-                GerenciarPerfisScreen(onBack = { navController.popBackStack() })
+                GerenciarPerfisScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToPremium = { navController.navigate(Screen.Premium.route) },
+                )
             }
             composable(Screen.GerenciarRotina.route) {
                 GerenciarRotinaScreen(onBack = { navController.popBackStack() })
@@ -213,11 +220,17 @@ fun VozinhaNavGraph(
                     ?.getString("categoryId")?.toLongOrNull()
                 AdicionarItemScreen(
                     onBack = { navController.popBackStack() },
-                    onNavigateToPremium = { navController.navigate(Screen.Conta.route) },
+                    onNavigateToPremium = { navController.navigate(Screen.Premium.route) },
                 )
             }
             composable(Screen.Conta.route) {
                 ContaScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToLogin = { navController.navigate(Screen.Login.route) },
+                )
+            }
+            composable(Screen.Premium.route) {
+                PremiumScreen(
                     onBack = { navController.popBackStack() },
                     onNavigateToLogin = { navController.navigate(Screen.Login.route) },
                 )

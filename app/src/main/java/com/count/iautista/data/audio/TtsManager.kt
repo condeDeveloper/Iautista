@@ -24,6 +24,7 @@ import javax.inject.Singleton
 class TtsManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val azureTts: AzureTtsService,
+    private val billingService: com.count.iautista.data.billing.BillingService,
 ) {
     private var tts: TextToSpeech? = null
     private var isAndroidTtsReady = false
@@ -38,6 +39,10 @@ class TtsManager @Inject constructor(
     /** True durante reprodução do áudio — exibe ícone de som no card. */
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
+
+    /** True quando usuário free atingiu o limite diário de 80 sínteses Azure. */
+    private val _isAtTtsDailyLimit = MutableStateFlow(false)
+    val isAtTtsDailyLimit: StateFlow<Boolean> = _isAtTtsDailyLimit.asStateFlow()
 
     init {
         tts = TextToSpeech(context) { status ->
@@ -90,16 +95,24 @@ class TtsManager @Inject constructor(
         _isPlaying.value = false
         if (azureTts.isConfigured) {
             scope.launch {
-                try {
-                    val file = azureTts.synthesize(text)
-                    if (file != null) {
-                        // _isSynthesizing permanece true; transição para _isPlaying em onPrepared
-                        playAudioFile(file.absolutePath)
-                    } else {
+                val cached = azureTts.isCached(text)
+                val canUse = billingService.canUseAzureTts(isCached = cached)
+                if (canUse) {
+                    try {
+                        val file = azureTts.synthesize(text)
+                        if (file != null) {
+                            if (!cached) billingService.recordTtsUsage()
+                            _isAtTtsDailyLimit.value = false
+                            playAudioFile(file.absolutePath)
+                        } else {
+                            speakWithAndroid(text)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Erro Azure TTS: ${e.message}")
                         speakWithAndroid(text)
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Erro Azure TTS: ${e.message}")
+                } else {
+                    _isAtTtsDailyLimit.value = true
                     speakWithAndroid(text)
                 }
             }

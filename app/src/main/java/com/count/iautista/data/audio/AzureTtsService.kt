@@ -104,6 +104,12 @@ class AzureTtsService @Inject constructor(
         return File(cacheDir, "$hash.mp3")
     }
 
+    /** Retorna true se o áudio já está em cache local — sem custo Azure. */
+    fun isCached(text: String): Boolean {
+        val file = cacheFileFor(text)
+        return file.exists() && file.length() > 0
+    }
+
     fun clearCache() {
         cacheDir.listFiles()?.forEach { it.delete() }
     }

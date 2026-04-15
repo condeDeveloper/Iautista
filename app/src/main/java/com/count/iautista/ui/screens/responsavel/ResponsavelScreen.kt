@@ -39,10 +39,13 @@ fun ResponsavelScreen(
     onNavigateToGerenciarRotina: () -> Unit,
     onNavigateToConfiguracoes: () -> Unit,
     onNavigateToConta: () -> Unit,
+    onNavigateToPremium: () -> Unit = {},
     onRequirePin: () -> Unit,
     viewModel: ResponsavelViewModel = hiltViewModel(),
+    billingViewModel: com.count.iautista.ui.screens.auth.BillingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val isPremium by billingViewModel.isPremium.collectAsState()
     var pinInput by remember { mutableStateOf("") }
     var pinError by remember { mutableStateOf(false) }
 
@@ -204,8 +207,11 @@ fun ResponsavelScreen(
         }
 
         // ── Banner Premium ─────────────────────────────────────────────────────
-        item {
-            PremiumBanner(onClick = { })
+        if (!isPremium) {
+            item {
+                PremiumBanner(onClick = onNavigateToPremium)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }

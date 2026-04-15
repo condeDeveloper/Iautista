@@ -15,8 +15,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.count.iautista.BuildConfig
 import com.count.iautista.domain.model.AppTheme
 import com.count.iautista.domain.model.ButtonSize
+import com.count.iautista.ui.screens.auth.BillingViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -27,8 +29,10 @@ import kotlin.math.roundToInt
 fun ConfiguracoesScreen(
     onBack: () -> Unit,
     viewModel: ConfiguracoesViewModel = hiltViewModel(),
+    billingViewModel: BillingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val isPremium by billingViewModel.isPremium.collectAsState()
 
     val notificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
@@ -274,6 +278,42 @@ fun ConfiguracoesScreen(
                     }
                 }
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            }
+
+            // ── Debug (apenas builds de desenvolvimento) ──────────────────────
+            if (BuildConfig.DEBUG) {
+                item {
+                    PrefSectionTitle("Debug")
+                }
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Simular Premium",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            Text(
+                                if (isPremium) "Premium ATIVO (debug)" else "Free tier",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = isPremium,
+                            onCheckedChange = { billingViewModel.debugSetPremium(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.error,
+                                checkedTrackColor = MaterialTheme.colorScheme.errorContainer,
+                            ),
+                        )
+                    }
+                }
             }
         }
     }

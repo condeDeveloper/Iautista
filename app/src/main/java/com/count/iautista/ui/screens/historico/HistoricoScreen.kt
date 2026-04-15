@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.count.iautista.domain.model.PhraseHistory
 import com.count.iautista.ui.components.SectionHeader
+import com.count.iautista.ui.screens.auth.BillingViewModel
 import com.count.iautista.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -29,9 +30,12 @@ import java.util.Locale
 
 @Composable
 fun HistoricoScreen(
+    onNavigateToPremium: () -> Unit = {},
     viewModel: HistoricoViewModel = hiltViewModel(),
+    billingViewModel: BillingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val isPremium by billingViewModel.isPremium.collectAsState()
     val tabs = listOf("Agora", "Hoje", "Esta semana")
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -77,6 +81,34 @@ fun HistoricoScreen(
                     ),
                     shape = ShapeChip,
                 )
+            }
+        }
+
+        // ── Banner free tier ──────────────────────────────────────────────────
+        if (!isPremium) {
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Histórico limitado a 7 dias no plano gratuito",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onNavigateToPremium) {
+                        Text(
+                            "Premium",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                            ),
+                        )
+                    }
+                }
             }
         }
 

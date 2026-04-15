@@ -31,11 +31,30 @@ import com.count.iautista.ui.theme.*
 @Composable
 fun GerenciarPerfisScreen(
     onBack: () -> Unit,
+    onNavigateToPremium: () -> Unit = {},
     viewModel: GerenciarPerfisViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
     val showAddDialog by viewModel.showAddDialog.collectAsState()
     val editingProfile by viewModel.editingProfile.collectAsState()
+    val premiumRequired by viewModel.premiumRequired.collectAsState()
+
+    if (premiumRequired) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissPremiumRequired() },
+            title = { Text("Recurso Premium") },
+            text  = { Text("Múltiplos perfis de criança estão disponíveis no plano Premium.") },
+            confirmButton = {
+                Button(onClick = { viewModel.dismissPremiumRequired(); onNavigateToPremium() }) {
+                    Text("Ver Premium")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissPremiumRequired() }) { Text("Agora não") }
+            },
+            shape = ShapeCard,
+        )
+    }
 
     if (showAddDialog) {
         ProfileNameDialog(

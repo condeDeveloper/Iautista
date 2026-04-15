@@ -76,6 +76,7 @@ private val emotionsFallback = listOf(
 
 // ── Tela principal ────────────────────────────────────────────────────────────
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun InicioScreen(
     navController: NavController,

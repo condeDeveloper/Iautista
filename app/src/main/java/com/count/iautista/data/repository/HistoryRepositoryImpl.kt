@@ -32,11 +32,11 @@ class HistoryRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Remove entradas com mais de FREE_HISTORY_DAYS dias.
-     * Alinhado com BillingService.FREE_HISTORY_DAYS.
+     * Remove entradas com mais de 30 dias (gerenciamento de storage).
+     * O gate de exibição de 7 dias para usuários free é feito na UI.
      */
     override suspend fun cleanup() {
-        phraseHistoryDao.deleteOlderThan(daysAgo(BillingService.FREE_HISTORY_DAYS.toLong()))
+        phraseHistoryDao.deleteOlderThan(daysAgo(30))
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

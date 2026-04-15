@@ -64,7 +64,7 @@ fun AdicionarItemScreen(
         AlertDialog(
             onDismissRequest = { viewModel.clearPremiumAlert() },
             title = { Text("Limite atingido") },
-            text = { Text("Você atingiu o limite de ${10} itens personalizados no plano gratuito. Assine o Premium para itens ilimitados.") },
+            text = { Text("Você atingiu o limite de 3 itens personalizados no plano gratuito. Assine o Premium para itens ilimitados.") },
             confirmButton = {
                 Button(onClick = { viewModel.clearPremiumAlert(); onNavigateToPremium() }) {
                     Text("Ver Premium")

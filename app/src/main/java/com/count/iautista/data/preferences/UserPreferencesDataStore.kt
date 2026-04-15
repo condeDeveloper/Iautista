@@ -38,6 +38,8 @@ class UserPreferencesDataStore @Inject constructor(
         val APP_MODE               = stringPreferencesKey("app_mode")
         val NOTIFICATIONS_ENABLED  = booleanPreferencesKey("notifications_enabled")
         val ACTIVE_CHILD_PROFILE_ID = longPreferencesKey("active_child_profile_id")
+        val TTS_DAILY_COUNT        = intPreferencesKey("tts_daily_count")
+        val TTS_DAILY_DATE         = stringPreferencesKey("tts_daily_date") // "yyyy-MM-dd"
     }
 
     // ── Flow principal de preferências ───────────────────────────────────────
@@ -116,6 +118,29 @@ class UserPreferencesDataStore @Inject constructor(
 
     suspend fun setActiveChildProfileId(id: Long) {
         context.dataStore.edit { it[Keys.ACTIVE_CHILD_PROFILE_ID] = id }
+    }
+
+    // ── Contador diário de sínteses Azure TTS ────────────────────────────────
+
+    val ttsDailyCount: Flow<Int> = context.dataStore.data
+        .catch { emit(emptyPreferences()) }
+        .map { it[Keys.TTS_DAILY_COUNT] ?: 0 }
+
+    val ttsDailyDate: Flow<String> = context.dataStore.data
+        .catch { emit(emptyPreferences()) }
+        .map { it[Keys.TTS_DAILY_DATE] ?: "" }
+
+    suspend fun incrementTtsCount() {
+        context.dataStore.edit {
+            it[Keys.TTS_DAILY_COUNT] = (it[Keys.TTS_DAILY_COUNT] ?: 0) + 1
+        }
+    }
+
+    suspend fun resetTtsCount(date: String) {
+        context.dataStore.edit {
+            it[Keys.TTS_DAILY_COUNT] = 0
+            it[Keys.TTS_DAILY_DATE]  = date
+        }
     }
 
     // ── Reset diário da rotina ────────────────────────────────────────────────

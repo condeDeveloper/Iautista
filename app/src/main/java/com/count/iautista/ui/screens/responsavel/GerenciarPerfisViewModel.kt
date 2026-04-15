@@ -2,6 +2,7 @@ package com.count.iautista.ui.screens.responsavel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.count.iautista.data.billing.BillingService
 import com.count.iautista.domain.model.ChildProfile
 import com.count.iautista.domain.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,6 +20,7 @@ data class GerenciarPerfisUiState(
 @HiltViewModel
 class GerenciarPerfisViewModel @Inject constructor(
     private val repository: ProfileRepository,
+    private val billingService: BillingService,
 ) : ViewModel() {
 
     val uiState: StateFlow<GerenciarPerfisUiState> = combine(
@@ -31,7 +33,22 @@ class GerenciarPerfisViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GerenciarPerfisUiState())
 
-    fun showAddDialog()  { _showAddDialog.value = true }
+    private val _premiumRequired = MutableStateFlow(false)
+    val premiumRequired: StateFlow<Boolean> = _premiumRequired.asStateFlow()
+
+    fun showAddDialog() {
+        viewModelScope.launch {
+            val hasProfiles = uiState.value.profiles.isNotEmpty()
+            if (hasProfiles && !billingService.isPremium()) {
+                _premiumRequired.value = true
+            } else {
+                _showAddDialog.value = true
+            }
+        }
+    }
+
+    fun dismissPremiumRequired() { _premiumRequired.value = false }
+
     fun dismissDialog()  { _showAddDialog.value = false; _editingProfile.value = null }
     fun editProfile(profile: ChildProfile) { _editingProfile.value = profile }
 

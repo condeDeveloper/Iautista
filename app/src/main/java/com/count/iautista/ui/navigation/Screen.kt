@@ -39,6 +39,7 @@ sealed class Screen(val route: String) {
     }
     object Configuracoes : Screen("configuracoes")
     object Conta : Screen("conta")
+    object Premium : Screen("premium")
 }
 
 sealed class BottomNavItem(

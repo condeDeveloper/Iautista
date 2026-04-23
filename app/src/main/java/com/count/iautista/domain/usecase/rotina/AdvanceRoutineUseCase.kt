@@ -23,7 +23,7 @@ class AdvanceRoutineUseCase @Inject constructor(
             )
         )
         // 2. Snapshot fresco após a atualização
-        val items = repository.getAllItemsOnce()
+        val items = repository.getAllItemsOnce(doneItem.profileId)
 
         // 3. Promove NEXT → NOW (se não houver NEXT, promove o primeiro LATER → NOW)
         val nextItem = items.firstOrNull { it.status == RoutineStatus.NEXT }

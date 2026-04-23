@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "routine_items")
 data class RoutineItemEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val profileId: Long = 0,
     val text: String,
     val emoji: String,
     val imageUri: String? = null,

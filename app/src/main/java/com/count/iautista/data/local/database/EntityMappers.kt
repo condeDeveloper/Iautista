@@ -62,10 +62,10 @@ fun CommunicationItem.toEntity() = CommunicationItemEntity(
 
 fun RoutineItemEntity.toDomain() = RoutineItem(
     id = id,
+    profileId = profileId,
     text = text,
     emoji = emoji,
     imageUri = imageUri,
-    // Defensivo: fallback para LATER se o valor salvo estiver corrompido
     status = runCatching { RoutineStatus.valueOf(status) }.getOrDefault(RoutineStatus.LATER),
     order = order,
     suggestedHour = suggestedHour,
@@ -74,6 +74,7 @@ fun RoutineItemEntity.toDomain() = RoutineItem(
 
 fun RoutineItem.toEntity() = RoutineItemEntity(
     id = id,
+    profileId = profileId,
     text = text,
     emoji = emoji,
     imageUri = imageUri,
@@ -87,8 +88,9 @@ fun RoutineItem.toEntity() = RoutineItemEntity(
 
 fun PhraseHistoryEntity.toDomain() = PhraseHistory(
     id = id,
+    profileId = profileId,
     phraseText = phraseText,
-    itemIds = itemIds, // já é List<Long> via TypeConverter
+    itemIds = itemIds,
     createdAt = Instant.ofEpochMilli(createdAt)
         .atZone(ZoneId.systemDefault())
         .toLocalDateTime(),
@@ -98,6 +100,7 @@ fun PhraseHistoryEntity.toDomain() = PhraseHistory(
 
 fun PhraseHistory.toEntity() = PhraseHistoryEntity(
     id = id,
+    profileId = profileId,
     phraseText = phraseText,
     itemIds = itemIds,
     createdAt = createdAt

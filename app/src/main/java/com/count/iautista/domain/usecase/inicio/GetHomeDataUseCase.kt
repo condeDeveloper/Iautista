@@ -8,6 +8,7 @@ import com.count.iautista.domain.repository.ProfileRepository
 import com.count.iautista.domain.repository.RoutineRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import java.time.LocalTime
 import javax.inject.Inject
 
@@ -17,21 +18,24 @@ class GetHomeDataUseCase @Inject constructor(
     private val communicationRepository: CommunicationRepository,
     private val routineRepository: RoutineRepository,
 ) {
-    operator fun invoke(): Flow<HomeData> = combine(
-        profileRepository.getProfile(),
-        historyRepository.getRecentPhrases(10),
-        communicationRepository.getMostUsedItems(8),
-        routineRepository.getAllRoutineItems(),
-    ) { profile, recentPhrases, mostUsed, routineItems ->
-        HomeData(
-            profile = profile,
-            greeting = buildGreeting(profile?.name),
-            recentPhrases = recentPhrases,
-            mostUsedItems = mostUsed,
-            routineNow  = routineItems.filter { it.status == RoutineStatus.NOW },
-            routineNext = routineItems.filter { it.status == RoutineStatus.NEXT },
-        )
-    }
+    operator fun invoke(): Flow<HomeData> =
+        profileRepository.getProfile().flatMapLatest { profile ->
+            val profileId = profile?.id ?: 0L
+            combine(
+                historyRepository.getRecentPhrases(profileId, 10),
+                communicationRepository.getMostUsedItems(profileId, 8),
+                routineRepository.getAllRoutineItems(profileId),
+            ) { recentPhrases, mostUsed, routineItems ->
+                HomeData(
+                    profile = profile,
+                    greeting = buildGreeting(profile?.name),
+                    recentPhrases = recentPhrases,
+                    mostUsedItems = mostUsed,
+                    routineNow  = routineItems.filter { it.status == RoutineStatus.NOW },
+                    routineNext = routineItems.filter { it.status == RoutineStatus.NEXT },
+                )
+            }
+        }
 
     private fun buildGreeting(name: String?): String {
         val period = when (LocalTime.now().hour) {

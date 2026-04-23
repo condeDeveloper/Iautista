@@ -104,7 +104,8 @@ class FirestoreSyncService @Inject constructor(
     }
 
     private suspend fun pushRoutineItems(uid: String) {
-        val items = routineDao.getAllOnce()
+        val profileId = prefsDataStore.activeChildProfileId.first()
+        val items = routineDao.getAllOnce(profileId)
         val batch = firestore.batch()
         items.forEach { item ->
             val doc = routineItems(uid).document(item.id.toString())
@@ -114,7 +115,8 @@ class FirestoreSyncService @Inject constructor(
     }
 
     private suspend fun pushPhraseHistory(uid: String) {
-        val phrases = historyDao.getRecentOnce(100)
+        val profileId = prefsDataStore.activeChildProfileId.first()
+        val phrases = historyDao.getRecentOnce(profileId, 100)
         val batch = firestore.batch()
         phrases.forEach { phrase ->
             val doc = phraseHistory(uid).document(phrase.id.toString())
@@ -175,14 +177,16 @@ class FirestoreSyncService @Inject constructor(
     }
 
     private suspend fun pullRoutineItems(uid: String) {
+        val profileId = prefsDataStore.activeChildProfileId.first()
         val docs = routineItems(uid).get().await()
-        val items = docs.documents.mapNotNull { it.data?.toRoutineItemEntity() }
+        val items = docs.documents.mapNotNull { it.data?.toRoutineItemEntity(profileId) }
         if (items.isNotEmpty()) routineDao.insertAll(items)
     }
 
     private suspend fun pullPhraseHistory(uid: String) {
+        val profileId = prefsDataStore.activeChildProfileId.first()
         val docs = phraseHistory(uid).get().await()
-        val phrases = docs.documents.mapNotNull { it.data?.toPhraseHistoryEntity() }
+        val phrases = docs.documents.mapNotNull { it.data?.toPhraseHistoryEntity(profileId) }
         if (phrases.isNotEmpty()) historyDao.insertAll(phrases)
     }
 
@@ -253,8 +257,9 @@ class FirestoreSyncService @Inject constructor(
         createdAt   = (get("createdAt") as? Long) ?: System.currentTimeMillis(),
     )
 
-    private fun Map<String, Any?>.toRoutineItemEntity() = RoutineItemEntity(
+    private fun Map<String, Any?>.toRoutineItemEntity(profileId: Long) = RoutineItemEntity(
         id           = (get("localId") as? Long) ?: 0L,
+        profileId    = profileId,
         text         = get("text") as? String ?: "",
         emoji        = get("emoji") as? String ?: "",
         imageUri     = get("imageUri") as? String,
@@ -265,8 +270,9 @@ class FirestoreSyncService @Inject constructor(
     )
 
     @Suppress("UNCHECKED_CAST")
-    private fun Map<String, Any?>.toPhraseHistoryEntity() = PhraseHistoryEntity(
+    private fun Map<String, Any?>.toPhraseHistoryEntity(profileId: Long) = PhraseHistoryEntity(
         id         = (get("localId") as? Long) ?: 0L,
+        profileId  = profileId,
         phraseText = get("phraseText") as? String ?: "",
         itemIds    = (get("itemIds") as? List<Long>) ?: emptyList(),
         createdAt  = (get("createdAt") as? Long) ?: System.currentTimeMillis(),

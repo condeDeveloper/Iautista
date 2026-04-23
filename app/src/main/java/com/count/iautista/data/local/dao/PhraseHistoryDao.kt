@@ -7,21 +7,21 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PhraseHistoryDao {
 
-    @Query("SELECT * FROM phrase_history ORDER BY createdAt DESC LIMIT :limit")
-    fun getRecentPhrases(limit: Int): Flow<List<PhraseHistoryEntity>>
+    @Query("SELECT * FROM phrase_history WHERE profileId = :profileId ORDER BY createdAt DESC LIMIT :limit")
+    fun getRecentPhrases(profileId: Long, limit: Int): Flow<List<PhraseHistoryEntity>>
 
-    @Query("SELECT * FROM phrase_history WHERE createdAt >= :since ORDER BY createdAt DESC")
-    fun getPhrasesAfter(since: Long): Flow<List<PhraseHistoryEntity>>
+    @Query("SELECT * FROM phrase_history WHERE profileId = :profileId AND createdAt >= :since ORDER BY createdAt DESC")
+    fun getPhrasesAfter(profileId: Long, since: Long): Flow<List<PhraseHistoryEntity>>
 
     @Query("""
         SELECT phraseText, COUNT(*) as count
         FROM phrase_history
-        WHERE createdAt >= :since
+        WHERE profileId = :profileId AND createdAt >= :since
         GROUP BY phraseText
         ORDER BY count DESC
         LIMIT :limit
     """)
-    fun getMostUsedPhrases(since: Long, limit: Int): Flow<List<PhraseUsageResult>>
+    fun getMostUsedPhrases(profileId: Long, since: Long, limit: Int): Flow<List<PhraseUsageResult>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(phrase: PhraseHistoryEntity): Long
@@ -33,8 +33,8 @@ interface PhraseHistoryDao {
     suspend fun count(): Int
 
     /** Snapshot único das N frases mais recentes — usado para sync com Firestore */
-    @Query("SELECT * FROM phrase_history ORDER BY createdAt DESC LIMIT :limit")
-    suspend fun getRecentOnce(limit: Int): List<PhraseHistoryEntity>
+    @Query("SELECT * FROM phrase_history WHERE profileId = :profileId ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun getRecentOnce(profileId: Long, limit: Int): List<PhraseHistoryEntity>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(phrases: List<PhraseHistoryEntity>)

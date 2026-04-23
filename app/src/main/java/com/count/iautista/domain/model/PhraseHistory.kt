@@ -6,6 +6,7 @@ import java.time.LocalDateTime
 @Immutable
 data class PhraseHistory(
     val id: Long = 0,
+    val profileId: Long = 0,
     val phraseText: String,
     val itemIds: List<Long> = emptyList(),
     val createdAt: LocalDateTime = LocalDateTime.now(),

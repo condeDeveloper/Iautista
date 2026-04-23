@@ -11,6 +11,7 @@ enum class RoutineStatus {
 @Immutable
 data class RoutineItem(
     val id: Long = 0,
+    val profileId: Long = 0,
     val text: String,
     val emoji: String,
     val imageUri: String? = null,

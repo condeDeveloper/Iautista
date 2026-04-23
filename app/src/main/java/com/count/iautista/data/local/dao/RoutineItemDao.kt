@@ -7,11 +7,11 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface RoutineItemDao {
 
-    @Query("SELECT * FROM routine_items ORDER BY `order` ASC")
-    fun getAllRoutineItems(): Flow<List<RoutineItemEntity>>
+    @Query("SELECT * FROM routine_items WHERE profileId = :profileId ORDER BY `order` ASC")
+    fun getAllRoutineItems(profileId: Long): Flow<List<RoutineItemEntity>>
 
-    @Query("SELECT * FROM routine_items WHERE status = :status ORDER BY `order` ASC")
-    fun getByStatus(status: String): Flow<List<RoutineItemEntity>>
+    @Query("SELECT * FROM routine_items WHERE profileId = :profileId AND status = :status ORDER BY `order` ASC")
+    fun getByStatus(profileId: Long, status: String): Flow<List<RoutineItemEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(items: List<RoutineItemEntity>)
@@ -28,17 +28,19 @@ interface RoutineItemDao {
     @Query("UPDATE routine_items SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: Long, status: String)
 
-    // Reseta todos os itens (incluindo DONE) para LATER — novo dia começa do zero
-    @Query("UPDATE routine_items SET status = 'LATER'")
-    suspend fun resetDailyRoutine()
+    @Query("UPDATE routine_items SET status = 'LATER' WHERE profileId = :profileId")
+    suspend fun resetDailyRoutine(profileId: Long)
 
-    @Query("UPDATE routine_items SET status = 'DONE' WHERE status = 'NOW'")
-    suspend fun markCurrentAsDone()
+    @Query("UPDATE routine_items SET status = 'DONE' WHERE profileId = :profileId AND status = 'NOW'")
+    suspend fun markCurrentAsDone(profileId: Long)
 
     /** Snapshot único — usado em operações de reordenação e progressão de cadeia */
-    @Query("SELECT * FROM routine_items ORDER BY `order` ASC")
-    suspend fun getAllOnce(): List<RoutineItemEntity>
+    @Query("SELECT * FROM routine_items WHERE profileId = :profileId ORDER BY `order` ASC")
+    suspend fun getAllOnce(profileId: Long): List<RoutineItemEntity>
+
+    @Query("SELECT COUNT(*) FROM routine_items WHERE profileId = :profileId")
+    suspend fun count(profileId: Long): Int
 
     @Query("SELECT COUNT(*) FROM routine_items")
-    suspend fun count(): Int
+    suspend fun countAll(): Int
 }

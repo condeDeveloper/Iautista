@@ -6,23 +6,17 @@ import kotlinx.coroutines.flow.Flow
 
 interface CommunicationRepository {
 
-    // ── Leitura ──────────────────────────────────────────────────────────────
-
     fun getCategories(): Flow<List<CommunicationCategory>>
 
     fun getItemsByCategory(categoryId: Long): Flow<List<CommunicationItem>>
 
     fun getFavoriteItems(): Flow<List<CommunicationItem>>
 
-    /** limit sem default — evita problema de parâmetro default em Room */
-    fun getMostUsedItems(limit: Int): Flow<List<CommunicationItem>>
+    fun getMostUsedItems(profileId: Long, limit: Int): Flow<List<CommunicationItem>>
 
     fun getItemsByTexts(texts: List<String>): Flow<List<CommunicationItem>>
 
-    /** Busca um item pelo texto (case-insensitive) — retorna null se não existir. */
     suspend fun getItemByText(text: String): CommunicationItem?
-
-    // ── Escrita ──────────────────────────────────────────────────────────────
 
     suspend fun saveItem(item: CommunicationItem): Long
 
@@ -32,10 +26,7 @@ interface CommunicationRepository {
 
     suspend fun toggleFavorite(itemId: Long, isFavorite: Boolean)
 
-    suspend fun incrementUsage(itemId: Long)
+    suspend fun incrementUsage(profileId: Long, itemId: Long)
 
-    // ── Contagem / utilitários ────────────────────────────────────────────────
-
-    /** Conta apenas itens criados pelo responsável (não padrão) */
     suspend fun countCustomItems(): Int
 }

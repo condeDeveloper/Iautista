@@ -14,7 +14,7 @@ class SkipRoutineItemUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(skippedItem: RoutineItem) {
         // 1. Snapshot atual para calcular o maior order
-        val items = repository.getAllItemsOnce()
+        val items = repository.getAllItemsOnce(skippedItem.profileId)
         val maxOrder = items.maxOfOrNull { it.order } ?: skippedItem.order
 
         // 2. Move o item pulado para o final da fila como LATER
@@ -26,7 +26,7 @@ class SkipRoutineItemUseCase @Inject constructor(
         )
 
         // 3. Snapshot fresco após a atualização
-        val updated = repository.getAllItemsOnce()
+        val updated = repository.getAllItemsOnce(skippedItem.profileId)
 
         // 4. Promove NEXT → NOW (se não houver NEXT, promove o primeiro LATER → NOW)
         val nextItem = updated.firstOrNull { it.status == RoutineStatus.NEXT }

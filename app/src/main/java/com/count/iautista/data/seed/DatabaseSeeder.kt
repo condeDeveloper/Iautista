@@ -2,10 +2,8 @@ package com.count.iautista.data.seed
 
 import com.count.iautista.data.local.dao.CommunicationCategoryDao
 import com.count.iautista.data.local.dao.CommunicationItemDao
-import com.count.iautista.data.local.dao.RoutineItemDao
 import com.count.iautista.data.local.entity.CommunicationCategoryEntity
 import com.count.iautista.data.local.entity.CommunicationItemEntity
-import com.count.iautista.data.local.entity.RoutineItemEntity
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -13,12 +11,10 @@ import javax.inject.Singleton
 class DatabaseSeeder @Inject constructor(
     private val categoryDao: CommunicationCategoryDao,
     private val itemDao: CommunicationItemDao,
-    private val routineDao: RoutineItemDao,
 ) {
-    /** Idempotente — só insere se o banco estiver vazio; aplica patches de imagens locais. */
+    /** Idempotente — só insere categorias/itens se o banco estiver vazio; aplica patches. */
     suspend fun seedIfEmpty() {
         if (categoryDao.count() == 0) seedCategories()
-        if (routineDao.count() == 0) seedRoutine()
         // Migra installs existentes (ARASAAC URLs → drawables locais bundled no APK)
         patchToLocalDrawables()
     }
@@ -171,24 +167,6 @@ class DatabaseSeeder @Inject constructor(
         itemDao.insertAll(items)
     }
 
-    // ── Rotina ───────────────────────────────────────────────────────────────
-
-    private suspend fun seedRoutine() {
-        val routine = listOf(
-            rot("Acordar",          "☀️", "DONE",  0, 7),
-            rot("Escovar os dentes","🦷", "DONE",  1, 7),
-            rot("Café da manhã",    "🥐", "NOW",   2, 8),
-            rot("Escola",           "🎒", "NEXT",  3, 9),
-            rot("Terapia",          "🌟", "LATER", 4, 11),
-            rot("Almoço",           "🍽️","LATER", 5, 12),
-            rot("Brincar",          "🧸", "LATER", 6, 14),
-            rot("Banho",            "🛁", "LATER", 7, 17),
-            rot("Jantar",           "🍽️","LATER", 8, 18),
-            rot("Dormir",           "😴", "LATER", 9, 21),
-        )
-        routineDao.insertAll(routine)
-    }
-
     // ── Construtores compactos ────────────────────────────────────────────────
 
     private fun cat(id: Long, name: String, emoji: String, bg: Long, order: Int) =
@@ -203,10 +181,7 @@ class DatabaseSeeder @Inject constructor(
         CommunicationItemEntity(
             id = 0, categoryId = categoryId, text = text, emoji = emoji,
             imageRes = null, imageUri = imageUri, audioUri = null,
-            isFavorite = false, isDefault = true, order = order, usageCount = 0,
+            isFavorite = false, isDefault = true, order = order,
         )
 
-    private fun rot(text: String, emoji: String, status: String, order: Int, hour: Int) =
-        RoutineItemEntity(id = 0, text = text, emoji = emoji,
-            status = status, order = order, suggestedHour = hour)
 }

@@ -13,8 +13,9 @@ import com.count.iautista.data.local.entity.*
         CommunicationItemEntity::class,
         RoutineItemEntity::class,
         PhraseHistoryEntity::class,
+        ProfileItemUsageEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -24,6 +25,7 @@ abstract class VozinhaDatabase : RoomDatabase() {
     abstract fun communicationItemDao(): CommunicationItemDao
     abstract fun routineItemDao(): RoutineItemDao
     abstract fun phraseHistoryDao(): PhraseHistoryDao
+    abstract fun profileItemUsageDao(): ProfileItemUsageDao
 
     companion object {
         const val DATABASE_NAME = "iautista_db"

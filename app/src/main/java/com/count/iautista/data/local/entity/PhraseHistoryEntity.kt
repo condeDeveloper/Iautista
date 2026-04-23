@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "phrase_history")
 data class PhraseHistoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val profileId: Long = 0,
     val phraseText: String,
     val itemIds: List<Long> = emptyList(), // serializado via Converters.kt
     val createdAt: Long = System.currentTimeMillis(),

@@ -35,4 +35,7 @@ object DatabaseModule {
 
     @Provides
     fun providePhraseHistoryDao(db: VozinhaDatabase) = db.phraseHistoryDao()
+
+    @Provides
+    fun provideProfileItemUsageDao(db: VozinhaDatabase) = db.profileItemUsageDao()
 }

@@ -10,13 +10,13 @@ import com.count.iautista.domain.model.AppMode
 import com.count.iautista.domain.model.ChildProfile
 import com.count.iautista.domain.model.RoutineStatus
 import com.count.iautista.domain.model.UserPreferences
-import com.count.iautista.domain.repository.RoutineRepository
 import com.count.iautista.domain.usecase.historico.GetPhrasesHistoryUseCase
 import com.count.iautista.domain.usecase.historico.HistoryFilter
 import com.count.iautista.domain.usecase.responsavel.GetChildProfileUseCase
 import com.count.iautista.domain.usecase.responsavel.GetUserPreferencesUseCase
 import com.count.iautista.domain.usecase.responsavel.PinUseCase
 import com.count.iautista.domain.usecase.responsavel.SaveChildProfileUseCase
+import com.count.iautista.domain.usecase.rotina.GetRoutineItemsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -49,26 +49,25 @@ class ResponsavelViewModel @Inject constructor(
     private val dataStore: UserPreferencesDataStore,
     private val syncService: FirestoreSyncService,
     private val getHistory: GetPhrasesHistoryUseCase,
-    private val routineRepository: RoutineRepository,
+    private val getRoutineItems: GetRoutineItemsUseCase,
 ) : ViewModel() {
 
-    // SavedStateHandle garante que o PIN continua desbloqueado ao navegar entre
-    // sub-telas do responsável e ao alternar abas pelo bottom bar.
     private val _pinUnlocked = savedStateHandle.getStateFlow("pin_unlocked", false)
 
     val uiState: StateFlow<ResponsavelUiState> = combine(
         getProfile(),
         getPreferences(),
         getHistory(HistoryFilter.TODAY),
-        routineRepository.getAllRoutineItems(),
+        getRoutineItems(),
         _pinUnlocked,
-    ) { profile, prefs, todayPhrases, routineItems, pinUnlocked ->
+    ) { profile, prefs, todayPhrases, routineGroup, pinUnlocked ->
         val topMode = todayPhrases
             .groupBy { it.appMode }
             .maxByOrNull { it.value.size }
             ?.key
-        val routineCompleted = routineItems.count { it.status == RoutineStatus.DONE }
-        val routineTotal = routineItems.size
+        val routineCompleted = routineGroup.done.size
+        val routineTotal = routineGroup.now.size + routineGroup.next.size +
+                routineGroup.later.size + routineGroup.done.size
         ResponsavelUiState(
             profile         = profile,
             preferences     = prefs,
@@ -113,7 +112,6 @@ class ResponsavelViewModel @Inject constructor(
     fun signOut() {
         val uid = authRepository.currentUser?.uid
         viewModelScope.launch {
-            // Faz backup antes de sair para não perder dados
             if (uid != null) runCatching { syncService.pushAll(uid) }
             authRepository.signOut()
             dataStore.setLoggedIn(false)

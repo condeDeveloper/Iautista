@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface RoutineRepository {
 
-    fun getAllRoutineItems(): Flow<List<RoutineItem>>
+    fun getAllRoutineItems(profileId: Long): Flow<List<RoutineItem>>
 
     suspend fun saveItem(item: RoutineItem): Long
 
@@ -16,18 +16,13 @@ interface RoutineRepository {
 
     suspend fun updateStatus(itemId: Long, status: RoutineStatus)
 
-    /** Snapshot único de todos os itens, ordenados por `order` */
-    suspend fun getAllItemsOnce(): List<RoutineItem>
+    suspend fun getAllItemsOnce(profileId: Long): List<RoutineItem>
 
-    /** Volta todos os itens ativos (NOW, NEXT, LATER) para LATER */
-    suspend fun resetDailyRoutine()
+    suspend fun resetDailyRoutine(profileId: Long)
 
-    /**
-     * Reset inteligente: reseta tudo para LATER e calcula NOW/NEXT
-     * com base no [currentHour] e no campo suggestedHour de cada item.
-     */
-    suspend fun resetWithSchedule(currentHour: Int)
+    suspend fun resetWithSchedule(profileId: Long, currentHour: Int)
 
-    /** Marca o item atual (NOW) como DONE */
-    suspend fun markCurrentAsDone()
+    suspend fun markCurrentAsDone(profileId: Long)
+
+    suspend fun seedDefaultRoutine(profileId: Long)
 }

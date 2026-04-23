@@ -3,6 +3,7 @@ package com.count.iautista.data.repository
 import com.count.iautista.data.local.dao.RoutineItemDao
 import com.count.iautista.data.local.database.toDomain
 import com.count.iautista.data.local.database.toEntity
+import com.count.iautista.data.local.entity.RoutineItemEntity
 import com.count.iautista.domain.model.RoutineItem
 import com.count.iautista.domain.model.RoutineStatus
 import com.count.iautista.domain.repository.RoutineRepository
@@ -16,8 +17,8 @@ class RoutineRepositoryImpl @Inject constructor(
     private val routineItemDao: RoutineItemDao,
 ) : RoutineRepository {
 
-    override fun getAllRoutineItems(): Flow<List<RoutineItem>> =
-        routineItemDao.getAllRoutineItems().map { it.map { e -> e.toDomain() } }
+    override fun getAllRoutineItems(profileId: Long): Flow<List<RoutineItem>> =
+        routineItemDao.getAllRoutineItems(profileId).map { it.map { e -> e.toDomain() } }
 
     override suspend fun saveItem(item: RoutineItem): Long =
         routineItemDao.insert(item.toEntity())
@@ -31,30 +32,45 @@ class RoutineRepositoryImpl @Inject constructor(
     override suspend fun updateStatus(itemId: Long, status: RoutineStatus) =
         routineItemDao.updateStatus(itemId, status.name)
 
-    override suspend fun getAllItemsOnce(): List<RoutineItem> =
-        routineItemDao.getAllOnce().map { it.toDomain() }
+    override suspend fun getAllItemsOnce(profileId: Long): List<RoutineItem> =
+        routineItemDao.getAllOnce(profileId).map { it.toDomain() }
 
-    override suspend fun resetDailyRoutine() =
-        routineItemDao.resetDailyRoutine()
+    override suspend fun resetDailyRoutine(profileId: Long) =
+        routineItemDao.resetDailyRoutine(profileId)
 
-    override suspend fun resetWithSchedule(currentHour: Int) {
-        val items = routineItemDao.getAllOnce().sortedBy { it.order }
-        // 1. Reseta todos os ativos para LATER
-        routineItemDao.resetDailyRoutine()
+    override suspend fun resetWithSchedule(profileId: Long, currentHour: Int) {
+        val items = routineItemDao.getAllOnce(profileId).sortedBy { it.order }
+        routineItemDao.resetDailyRoutine(profileId)
         if (items.isEmpty()) return
-        // 2. Encontra o item cuja hora sugerida é a mais próxima sem ultrapassar currentHour.
-        //    Se nenhum item tem suggestedHour <= currentHour, usa o primeiro por ordem.
         val nowIndex = items
             .indexOfLast { (it.suggestedHour ?: 0) <= currentHour }
             .let { if (it < 0) 0 else it }
-        // 3. Define NOW
         routineItemDao.updateStatus(items[nowIndex].id, "NOW")
-        // 4. Define NEXT (primeiro item após o NOW)
         if (nowIndex + 1 < items.size) {
             routineItemDao.updateStatus(items[nowIndex + 1].id, "NEXT")
         }
     }
 
-    override suspend fun markCurrentAsDone() =
-        routineItemDao.markCurrentAsDone()
+    override suspend fun markCurrentAsDone(profileId: Long) =
+        routineItemDao.markCurrentAsDone(profileId)
+
+    override suspend fun seedDefaultRoutine(profileId: Long) {
+        if (routineItemDao.count(profileId) > 0) return
+        routineItemDao.insertAll(listOf(
+            rot(profileId, "Acordar",           "☀️", "DONE",  0, 7),
+            rot(profileId, "Escovar os dentes", "🦷", "DONE",  1, 7),
+            rot(profileId, "Café da manhã",     "🥐", "NOW",   2, 8),
+            rot(profileId, "Escola",            "🎒", "NEXT",  3, 9),
+            rot(profileId, "Terapia",           "🌟", "LATER", 4, 11),
+            rot(profileId, "Almoço",            "🍽️","LATER", 5, 12),
+            rot(profileId, "Brincar",           "🧸", "LATER", 6, 14),
+            rot(profileId, "Banho",             "🛁", "LATER", 7, 17),
+            rot(profileId, "Jantar",            "🍽️","LATER", 8, 18),
+            rot(profileId, "Dormir",            "😴", "LATER", 9, 21),
+        ))
+    }
+
+    private fun rot(profileId: Long, text: String, emoji: String, status: String, order: Int, hour: Int) =
+        RoutineItemEntity(profileId = profileId, text = text, emoji = emoji,
+            status = status, order = order, suggestedHour = hour)
 }

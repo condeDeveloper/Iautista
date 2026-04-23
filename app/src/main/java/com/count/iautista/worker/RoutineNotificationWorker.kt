@@ -9,6 +9,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.count.iautista.R
 import com.count.iautista.domain.model.RoutineStatus
+import com.count.iautista.domain.repository.ProfileRepository
 import com.count.iautista.domain.repository.RoutineRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -19,13 +20,14 @@ class RoutineNotificationWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
     private val routineRepository: RoutineRepository,
+    private val profileRepository: ProfileRepository,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        val items = routineRepository.getAllItemsOnce()
+        val profileId = profileRepository.getProfileOnce()?.id ?: return Result.success()
+        val items = routineRepository.getAllItemsOnce(profileId)
         val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
 
-        // Itens que ainda não foram concluídos e têm horário sugerido na próxima hora
         val upcoming = items.filter { item ->
             item.status != RoutineStatus.DONE &&
                 item.suggestedHour != null &&

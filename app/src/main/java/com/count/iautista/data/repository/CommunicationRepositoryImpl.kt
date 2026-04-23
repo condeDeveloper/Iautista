@@ -2,6 +2,7 @@ package com.count.iautista.data.repository
 
 import com.count.iautista.data.local.dao.CommunicationCategoryDao
 import com.count.iautista.data.local.dao.CommunicationItemDao
+import com.count.iautista.data.local.dao.ProfileItemUsageDao
 import com.count.iautista.data.local.database.toDomain
 import com.count.iautista.data.local.database.toEntity
 import com.count.iautista.domain.model.CommunicationCategory
@@ -16,6 +17,7 @@ import javax.inject.Singleton
 class CommunicationRepositoryImpl @Inject constructor(
     private val categoryDao: CommunicationCategoryDao,
     private val itemDao: CommunicationItemDao,
+    private val usageDao: ProfileItemUsageDao,
 ) : CommunicationRepository {
 
     override fun getCategories(): Flow<List<CommunicationCategory>> =
@@ -27,9 +29,8 @@ class CommunicationRepositoryImpl @Inject constructor(
     override fun getFavoriteItems(): Flow<List<CommunicationItem>> =
         itemDao.getFavoriteItems().map { it.map { e -> e.toDomain() } }
 
-    override fun getMostUsedItems(limit: Int): Flow<List<CommunicationItem>> =
-        if (limit == 8) itemDao.getTop8MostUsed().map { it.map { e -> e.toDomain() } }
-        else itemDao.getMostUsedItems(limit).map { it.map { e -> e.toDomain() } }
+    override fun getMostUsedItems(profileId: Long, limit: Int): Flow<List<CommunicationItem>> =
+        usageDao.getMostUsedItems(profileId, limit).map { it.map { e -> e.toDomain() } }
 
     override fun getItemsByTexts(texts: List<String>): Flow<List<CommunicationItem>> =
         itemDao.getItemsByTexts(texts).map { it.map { e -> e.toDomain() } }
@@ -49,8 +50,8 @@ class CommunicationRepositoryImpl @Inject constructor(
     override suspend fun toggleFavorite(itemId: Long, isFavorite: Boolean) =
         itemDao.updateFavorite(itemId, isFavorite)
 
-    override suspend fun incrementUsage(itemId: Long) =
-        itemDao.incrementUsage(itemId)
+    override suspend fun incrementUsage(profileId: Long, itemId: Long) =
+        usageDao.incrementUsage(profileId, itemId)
 
     override suspend fun countCustomItems(): Int =
         itemDao.countCustomItems()
